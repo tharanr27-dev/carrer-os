@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: careeros-rules
+  namespace: careeros
+spec:
+  groups:
+    - name: careeros.alerts
+      rules:
+        - alert: HighErrorRate
+          expr: rate(http_requests_total[5m]) > 5
+          for: 2m
+          labels:
+            severity: page
+          annotations:
+            summary: "High HTTP error rate detected"
+        - alert: APICPUHigh
+          expr: sum(rate(container_cpu_usage_seconds_total{container=~"api"}[5m])) by (pod) > 0.8
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "API CPU usage high"
+        - alert: CeleryBacklog
+          expr: sum(celery_queue_messages) > 50
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Celery queue backlog high"

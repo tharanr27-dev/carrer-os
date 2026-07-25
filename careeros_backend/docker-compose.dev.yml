@@ -1,0 +1,56 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: careeros-api:dev
+    env_file:
+      - .env.example
+    environment:
+      ENVIRONMENT: development
+      POSTGRES_SERVER: postgres
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: careeros
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: ["celery", "-A", "app.modules.admin.tasks", "worker", "-l", "info"]
+    env_file:
+      - .env.example
+    depends_on:
+      - redis
+      - postgres
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: ["celery", "-A", "app.modules.admin.tasks", "beat", "-l", "info"]
+    env_file:
+      - .env.example
+    depends_on:
+      - redis
+      - postgres

@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: careeros-qdrant
+  namespace: careeros
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: careeros-qdrant
+  template:
+    metadata:
+      labels:
+        app: careeros-qdrant
+    spec:
+      containers:
+        - name: qdrant
+          image: qdrant/qdrant:v1.9.2
+          ports:
+            - containerPort: 6333
+          volumeMounts:
+            - name: qdrant-storage
+              mountPath: /qdrant/storage
+      volumes:
+        - name: qdrant-storage
+          emptyDir: {}

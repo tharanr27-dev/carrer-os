@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: careeros-api
+  namespace: careeros
+  labels:
+    app: careeros-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: careeros-api
+  template:
+    metadata:
+      labels:
+        app: careeros-api
+    spec:
+      containers:
+        - name: api
+          image: ${IMAGE_REGISTRY:-careeros-api}:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: POSTGRES_SERVER
+              value: postgres
+            - name: REDIS_URL
+              value: redis://redis:6379/0
+            - name: CELERY_BROKER_URL
+              value: redis://redis:6379/0
+            - name: CELERY_RESULT_BACKEND
+              value: redis://redis:6379/1
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"

@@ -1,0 +1,66 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${IMAGE_REPOSITORY:-careeros-api}:latest
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: production
+      POSTGRES_SERVER: postgres
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-careeros}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1", "--save", "10", "2"]
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${IMAGE_REPOSITORY:-careeros-api}:latest
+    command: ["celery", "-A", "app.modules.admin.tasks", "worker", "-l", "info", "--concurrency=4"]
+    env_file:
+      - .env
+    restart: always
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${IMAGE_REPOSITORY:-careeros-api}:latest
+    command: ["celery", "-A", "app.modules.admin.tasks", "beat", "-l", "info"]
+    env_file:
+      - .env
+    restart: always
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.2
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:

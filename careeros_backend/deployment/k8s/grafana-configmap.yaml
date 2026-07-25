@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: careeros
+  labels:
+    grafana_dashboard: "1"
+data:
+  system-overview.json: |
+    {
+      "title": "CareerOS System Overview",
+      "panels": []
+    }
