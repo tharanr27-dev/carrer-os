@@ -312,3 +312,28 @@ class AIProviderTestResponse(BaseModel):
     response_text: str
     latency_ms: int
     tokens_used: int
+
+
+class PermissionResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RoleResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    permissions: List[PermissionResponse] = []
+    created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserStatusUpdateRequest(BaseModel):
+    status: str
+
+
+class RoleAssignRequest(BaseModel):
+    role_name: str

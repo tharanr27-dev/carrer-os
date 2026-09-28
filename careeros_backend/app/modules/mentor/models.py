@@ -17,6 +17,7 @@ class MentorSession(AuditableBase):
         back_populates="session",
         cascade="all, delete-orphan",
         order_by="MentorMessage.created_at.asc()",
+        lazy="selectin",
     )
 
 
@@ -48,6 +49,7 @@ class CareerGoal(AuditableBase):
         back_populates="goal",
         cascade="all, delete-orphan",
         order_by="GoalMilestone.created_at.asc()",
+        lazy="selectin",
     )
 
 

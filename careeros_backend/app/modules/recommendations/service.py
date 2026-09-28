@@ -51,62 +51,67 @@ class RecommendationService:
         }
 
     async def _async_generate_and_rank(self, user_id: uuid.UUID) -> None:
+        from app.db.session import AsyncSessionLocal
         try:
-            # 1. Aggregate cross-module context
-            context = await self.context_aggregator.build_context(user_id)
+            async with AsyncSessionLocal() as session:
+                context_aggregator = ContextAggregator(session)
+                repository = RecommendationRepository(session)
+                audit_service = AuditService(session)
 
-            # 2. Fetch historical acceptance rate for ranking signal
-            analytics = await self.repository.get_or_create_analytics(user_id)
-            acceptance_rate = analytics.acceptance_rate or 0.5
+                # 1. Aggregate cross-module context
+                context = await context_aggregator.build_context(user_id)
 
-            # 3. AI Generation
-            candidates_list = await self.ai_engine.generate_candidates(context)
+                # 2. Fetch historical acceptance rate for ranking signal
+                analytics = await repository.get_or_create_analytics(user_id)
+                acceptance_rate = analytics.acceptance_rate or 0.5
 
-            # 4. Ranking
-            ranked = self.ranking_engine.rank(
-                candidates_list.recommendations, context, acceptance_rate
-            )
+                # 3. AI Generation
+                candidates_list = await self.ai_engine.generate_candidates(context)
 
-            # 5. Expire previous generation
-            await self.repository.expire_previous_generation(user_id)
-
-            # 6. Persist ranked recommendations
-            expires_at = datetime.now(timezone.utc) + timedelta(hours=RECOMMENDATION_TTL_HOURS)
-            orm_recs = [
-                Recommendation(
-                    user_id=user_id,
-                    category=item.category,
-                    title=item.title,
-                    description=item.description,
-                    reason=item.reason,
-                    confidence_score=item.confidence_score,
-                    estimated_impact=item.estimated_impact,
-                    difficulty=item.difficulty,
-                    related_skills=item.related_skills,
-                    source_modules=item.source_modules,
-                    rank_score=rank_score,
-                    priority=idx + 1,
-                    expires_at=expires_at,
-                    version=analytics.total_generated + 1,
+                # 4. Ranking
+                ranked = self.ranking_engine.rank(
+                    candidates_list.recommendations, context, acceptance_rate
                 )
-                for idx, (item, rank_score) in enumerate(ranked)
-            ]
-            await self.repository.bulk_create(orm_recs)
 
-            # 7. Invalidate Redis feed cache
-            redis = await get_redis()
-            await redis.delete(f"user:{user_id}:recommendations:ranked")
+                # 5. Expire previous generation
+                await repository.expire_previous_generation(user_id)
 
-            # 8. Audit
-            await self.audit_service.log_action(
-                user_id, "RECOMMENDATIONS_REFRESHED", "Recommendation", str(user_id)
-            )
+                # 6. Persist ranked recommendations
+                expires_at = datetime.now(timezone.utc) + timedelta(hours=RECOMMENDATION_TTL_HOURS)
+                orm_recs = [
+                    Recommendation(
+                        user_id=user_id,
+                        category=item.category,
+                        title=item.title,
+                        description=item.description,
+                        reason=item.reason,
+                        confidence_score=item.confidence_score,
+                        estimated_impact=item.estimated_impact,
+                        difficulty=item.difficulty,
+                        related_skills=item.related_skills,
+                        source_modules=item.source_modules,
+                        rank_score=rank_score,
+                        priority=idx + 1,
+                        expires_at=expires_at,
+                        version=analytics.total_generated + 1,
+                    )
+                    for idx, (item, rank_score) in enumerate(ranked)
+                ]
+                await repository.bulk_create(orm_recs)
 
-            logger.info(f"Generated {len(orm_recs)} recommendations for user {user_id}")
+                # 7. Invalidate Redis feed cache
+                redis = await get_redis()
+                await redis.delete(f"user:{user_id}:recommendations:ranked")
+
+                # 8. Audit
+                await audit_service.log_action(
+                    user_id, "RECOMMENDATIONS_REFRESHED", "Recommendation", str(user_id)
+                )
+
+                logger.info(f"Generated {len(orm_recs)} recommendations for user {user_id}")
 
         except Exception as exc:
             logger.error(f"Recommendation generation failed for user {user_id}: {exc}")
-            raise
 
     # ------------------------------------------------------------------
     # Feed Retrieval (Redis-first)

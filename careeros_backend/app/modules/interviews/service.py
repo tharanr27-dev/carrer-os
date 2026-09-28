@@ -86,24 +86,27 @@ class InterviewService:
     async def _async_evaluate_and_continue(
         self, session_id: uuid.UUID, answer_id: uuid.UUID, answer_text: str
     ):
+        from app.db.session import AsyncSessionLocal
         # 1. Evaluate
         evaluation = await self.eval_engine.evaluate_answer("dummy_q", answer_text)
-        await self.repository.save_feedback(
-            InterviewFeedback(
-                answer_id=answer_id,
-                score=evaluation.overall_score,
-                grammar_score=evaluation.grammar_score,
-                confidence_score=evaluation.confidence_score,
-                strengths=evaluation.strengths,
-                improvements=evaluation.improvements,
+        async with AsyncSessionLocal() as session:
+            repository = InterviewRepository(session)
+            await repository.save_feedback(
+                InterviewFeedback(
+                    answer_id=answer_id,
+                    score=evaluation.overall_score,
+                    grammar_score=evaluation.grammar_score,
+                    confidence_score=evaluation.confidence_score,
+                    strengths=evaluation.strengths,
+                    improvements=evaluation.improvements,
+                )
             )
-        )
 
-        # 2. Generate Next Question
-        next_q_text = await self.eval_engine.generate_next_question([], "TECHNICAL")
-        q = await self.repository.create_question(
-            InterviewQuestion(session_id=session_id, question_text=next_q_text)
-        )
+            # 2. Generate Next Question
+            next_q_text = await self.eval_engine.generate_next_question([], "TECHNICAL")
+            q = await repository.create_question(
+                InterviewQuestion(session_id=session_id, question_text=next_q_text)
+            )
 
         # 3. Push to WebSocket
         await manager.send_json(
@@ -115,14 +118,17 @@ class InterviewService:
         )
 
     async def _async_generate_report(self, session_id: uuid.UUID):
+        from app.db.session import AsyncSessionLocal
         report_data = await self.eval_engine.generate_final_report([])
-        await self.repository.save_report(
-            InterviewReport(
-                session_id=session_id,
-                overall_score=report_data.overall_score,
-                technical_score=report_data.technical_score,
-                communication_score=report_data.communication_score,
-                detailed_analysis=report_data.detailed_analysis,
-                recommended_learning=report_data.recommended_learning,
+        async with AsyncSessionLocal() as session:
+            repository = InterviewRepository(session)
+            await repository.save_report(
+                InterviewReport(
+                    session_id=session_id,
+                    overall_score=report_data.overall_score,
+                    technical_score=report_data.technical_score,
+                    communication_score=report_data.communication_score,
+                    detailed_analysis=report_data.detailed_analysis,
+                    recommended_learning=report_data.recommended_learning,
+                )
             )
-        )

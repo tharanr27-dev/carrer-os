@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +10,13 @@ from app.db.session import get_db
 
 # Schemas
 from app.modules.admin.schemas import (
+    AdminActionResponse,
     AdminDashboardSummary,
     AIProviderTestRequest,
     AIProviderTestResponse,
     AnnouncementCreate,
     AnnouncementResponse,
+    BackgroundJobHistoryResponse,
     BroadcastNotificationCreate,
     BroadcastNotificationResponse,
     FeatureFlagCreate,
@@ -28,6 +31,9 @@ from app.modules.admin.schemas import (
     ModelConfigurationResponse,
     ModelConfigurationUpdate,
     ModerationDecisionCreate,
+    ModerationDecisionResponse,
+    ModerationQueueResponse,
+    PermissionResponse,
     PlatformSettingCreate,
     PlatformSettingResponse,
     PlatformSettingUpdate,
@@ -35,7 +41,11 @@ from app.modules.admin.schemas import (
     PromptTemplateResponse,
     PromptVersionCreate,
     PromptVersionResponse,
+    RoleAssignRequest,
+    RoleResponse,
     SystemHealthResponse,
+    SystemHealthSnapshotResponse,
+    UserStatusUpdateRequest,
 )
 from app.modules.admin.services.ai_config_service import AIConfigService
 from app.modules.admin.services.announcement_service import AnnouncementService
@@ -84,7 +94,10 @@ async def get_all_settings(
 ):
     service = PlatformConfigService(db)
     settings_list = await service.get_all_settings()
-    return success_response(data=settings_list, message="Settings retrieved successfully")
+    return success_response(
+        data=[PlatformSettingResponse.model_validate(s) for s in settings_list],
+        message="Settings retrieved successfully",
+    )
 
 
 # ── Feature Flags ──────────────────────────────────────────────────────
@@ -119,7 +132,10 @@ async def get_all_flags(
 ):
     service = FeatureFlagService(db)
     flags = await service.get_all_flags()
-    return success_response(data=flags, message="Feature flags retrieved successfully")
+    return success_response(
+        data=[FeatureFlagResponse.model_validate(f) for f in flags],
+        message="Feature flags retrieved successfully",
+    )
 
 
 # ── AI Configurations ──────────────────────────────────────────────────
@@ -153,7 +169,10 @@ async def get_providers(
 ):
     service = AIConfigService(db)
     providers = await service.get_all_providers()
-    return success_response(data=providers, message="AI Providers list retrieved")
+    return success_response(
+        data=[LLMProviderResponse.model_validate(p) for p in providers],
+        message="AI Providers list retrieved",
+    )
 
 
 @router.post("/ai/prompts", response_model=PromptTemplateResponse)
@@ -179,15 +198,20 @@ async def create_prompt_version(
 @router.post("/ai/prompts/rollback")
 async def rollback_prompt(
     module: str,
-    version: str,
+    version: Optional[str] = None,
+    target_version: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_permissions(["admin:write"])),
 ):
     service = AIConfigService(db)
-    pv = await service.rollback_prompt(admin.id, module, version)
+    ver = version or target_version or "1"
+    pv = await service.rollback_prompt(admin.id, module, str(ver))
     if not pv:
         raise HTTPException(status_code=404, detail="Prompt version not found or rollback failed")
-    return success_response(data=pv, message=f"Prompt rollback to {version} successful")
+    return success_response(
+        data=PromptVersionResponse.model_validate(pv),
+        message=f"Prompt rollback to {ver} successful",
+    )
 
 
 # ── Moderation ─────────────────────────────────────────────────────────
@@ -199,7 +223,10 @@ async def get_moderation_queue(
 ):
     service = ModerationService(db)
     queue = await service.get_moderation_queue(status_filter)
-    return success_response(data=queue, message="Moderation queue retrieved")
+    return success_response(
+        data=[ModerationQueueResponse.model_validate(item) for item in queue],
+        message="Moderation queue retrieved",
+    )
 
 
 @router.post("/moderation/queue/{item_id}/decision")
@@ -213,7 +240,10 @@ async def decide_moderation(
     result = await service.create_moderation_decision(admin.id, item_id, decision_in)
     if not result:
         raise HTTPException(status_code=404, detail="Moderation queue item not found")
-    return success_response(data=result, message="Moderation action complete")
+    return success_response(
+        data=ModerationDecisionResponse.model_validate(result),
+        message="Moderation action complete",
+    )
 
 
 # ── Announcements & Broadcasts ───────────────────────────────────────────────
@@ -250,16 +280,19 @@ async def system_health_check(
 @router.put("/users/{user_id}/status")
 async def update_user_status(
     user_id: uuid.UUID,
-    status_str: str,
+    payload: Optional[UserStatusUpdateRequest] = None,
+    status_str: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_permissions(["admin:write"])),
 ):
     service = UserAdminService(db)
-    user = await service.update_user_status(admin.id, user_id, status_str)
+    resolved_status = (payload.status if payload else None) or status_str or "ACTIVE"
+    user = await service.update_user_status(admin.id, user_id, resolved_status.upper())
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    status_val = user.status.value if hasattr(user.status, "value") else str(user.status)
     return success_response(
-        data={"user_id": user.id, "status": user.status}, message="User status updated successfully"
+        data={"user_id": str(user.id), "status": status_val}, message="User status updated successfully"
     )
 
 
@@ -309,7 +342,10 @@ async def get_audit_logs(
 
     repo = AdminRepository(db)
     logs = await repo.get_admin_actions(limit=limit, offset=offset)
-    return success_response(data=logs, message="Audit logs retrieved")
+    return success_response(
+        data=[AdminActionResponse.model_validate(l) for l in logs],
+        message="Audit logs retrieved",
+    )
 
 
 # ── Health Snapshot History ────────────────────────────────────────────
@@ -324,7 +360,10 @@ async def get_health_snapshots(
     snapshot = await repo.get_latest_health()
     if not snapshot:
         return success_response(data=None, message="No snapshots found")
-    return success_response(data=snapshot, message="Latest health snapshot retrieved")
+    return success_response(
+        data=SystemHealthSnapshotResponse.model_validate(snapshot),
+        message="Latest health snapshot retrieved",
+    )
 
 
 # ── Resource Monitoring ────────────────────────────────────────────────
@@ -350,7 +389,10 @@ async def get_background_job_history(
 
     repo = AdminRepository(db)
     jobs = await repo.get_job_histories(limit=limit)
-    return success_response(data=jobs, message="Background job history retrieved")
+    return success_response(
+        data=[BackgroundJobHistoryResponse.model_validate(j) for j in jobs],
+        message="Background job history retrieved",
+    )
 
 
 # ── Role & Permission Management ───────────────────────────────────────
@@ -363,7 +405,10 @@ async def get_all_roles(
 
     service = AdminUserService(db)
     roles = await service.get_roles()
-    return success_response(data=roles, message="Roles retrieved")
+    return success_response(
+        data=[{"id": r.id, "name": r.name, "description": r.description} for r in roles],
+        message="Roles retrieved",
+    )
 
 
 @router.get("/permissions")
@@ -375,13 +420,17 @@ async def get_all_permissions(
 
     service = AdminUserService(db)
     perms = await service.get_permissions()
-    return success_response(data=perms, message="Permissions retrieved")
+    return success_response(
+        data=[{"id": p.id, "name": p.name, "description": p.description} for p in perms],
+        message="Permissions retrieved",
+    )
 
 
 @router.post("/users/{user_id}/roles/assign")
 async def assign_role_to_user(
     user_id: uuid.UUID,
-    role_name: str,
+    payload: Optional[RoleAssignRequest] = None,
+    role_name: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_permissions(["admin:write"])),
 ):
@@ -389,11 +438,14 @@ async def assign_role_to_user(
     from app.modules.admin.services.admin_user_service import AdminUserService
 
     service = AdminUserService(db)
-    user = await service.assign_role(admin.id, user_id, role_name)
+    resolved_role = (payload.role_name if payload else None) or role_name
+    if not resolved_role:
+        raise HTTPException(status_code=422, detail="role_name required")
+    user = await service.assign_role(admin.id, user_id, resolved_role)
     if not user:
         raise HTTPException(status_code=404, detail="User or role not found")
     return success_response(
-        data={"user_id": str(user_id), "role": role_name}, message="Role assigned successfully"
+        data={"user_id": str(user_id), "role": resolved_role}, message="Role assigned successfully"
     )
 
 
@@ -428,7 +480,10 @@ async def get_model_configs(
 ):
     service = AIConfigService(db)
     configs = await service.get_all_model_configs()
-    return success_response(data=configs, message="Model configurations retrieved")
+    return success_response(
+        data=[ModelConfigurationResponse.model_validate(c) for c in configs],
+        message="Model configurations retrieved",
+    )
 
 
 # ── Active Announcements (public endpoint for platform display) ────────
@@ -438,7 +493,10 @@ async def get_active_announcements(
 ):
     service = AnnouncementService(db)
     anns = await service.get_active_announcements()
-    return success_response(data=anns, message="Active announcements retrieved")
+    return success_response(
+        data=[AnnouncementResponse.model_validate(a) for a in anns],
+        message="Active announcements retrieved",
+    )
 
 
 # ── Maintenance Status ─────────────────────────────────────────────────
@@ -471,4 +529,7 @@ async def get_prompt_versions(
     """Lists all prompt versions for a given module."""
     service = AIConfigService(db)
     versions = await service.get_prompt_versions(module)
-    return success_response(data=versions, message=f"Prompt versions for module '{module}'")
+    return success_response(
+        data=[PromptVersionResponse.model_validate(v) for v in versions],
+        message=f"Prompt versions for module '{module}'",
+    )

@@ -1,0 +1,921 @@
+[
+  {
+    "num": 1,
+    "method": "GET",
+    "endpoint": "/health",
+    "purpose": "System health check",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 2,
+    "method": "GET",
+    "endpoint": "/health/live",
+    "purpose": "Liveness probe",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 3,
+    "method": "GET",
+    "endpoint": "/health/ready",
+    "purpose": "Readiness probe",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 4,
+    "method": "GET",
+    "endpoint": "/metrics",
+    "purpose": "Prometheus metrics",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 5,
+    "method": "GET",
+    "endpoint": "/api/v1/openapi.json",
+    "purpose": "OpenAPI schema",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 6,
+    "method": "POST",
+    "endpoint": "/api/v1/auth/register",
+    "purpose": "User registration",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 7,
+    "method": "POST",
+    "endpoint": "/api/v1/auth/login",
+    "purpose": "User login",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 8,
+    "method": "GET",
+    "endpoint": "/api/v1/users/me/profile",
+    "purpose": "Fetch user profile",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 9,
+    "method": "PUT",
+    "endpoint": "/api/v1/users/me/profile",
+    "purpose": "Update user profile",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 10,
+    "method": "POST",
+    "endpoint": "/api/v1/discovery/assessments/{template_id}/submit",
+    "purpose": "Submit assessment",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 11,
+    "method": "GET",
+    "endpoint": "/api/v1/discovery/reports/{report_id}",
+    "purpose": "Get career report (404 handled)",
+    "status_code": 404,
+    "expected": 404,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 12,
+    "method": "POST",
+    "endpoint": "/api/v1/resumes/upload",
+    "purpose": "Upload resume",
+    "status_code": 202,
+    "expected": 202,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 13,
+    "method": "GET",
+    "endpoint": "/api/v1/resumes/{resume_id}/analysis",
+    "purpose": "Get resume analysis (queued/404 handled)",
+    "status_code": 200,
+    "expected": [
+      200,
+      404
+    ],
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 14,
+    "method": "GET",
+    "endpoint": "/api/v1/resumes/{resume_id}/download",
+    "purpose": "Get resume download URL",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 15,
+    "method": "POST",
+    "endpoint": "/api/v1/mentor/goals",
+    "purpose": "Create career goal",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 16,
+    "method": "POST",
+    "endpoint": "/api/v1/mentor/sessions",
+    "purpose": "Create mentor session",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 17,
+    "method": "POST",
+    "endpoint": "/api/v1/mentor/sessions/{session_id}/message",
+    "purpose": "Send message to AI mentor",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 18,
+    "method": "POST",
+    "endpoint": "/api/v1/interviews/sessions",
+    "purpose": "Initialize AI interview session",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 19,
+    "method": "POST",
+    "endpoint": "/api/v1/communication/sessions",
+    "purpose": "Initialize communication session",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 20,
+    "method": "GET",
+    "endpoint": "/api/v1/learning/roadmaps/active",
+    "purpose": "Get active learning roadmap",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 21,
+    "method": "POST",
+    "endpoint": "/api/v1/learning/roadmaps/generate",
+    "purpose": "Generate learning roadmap",
+    "status_code": 202,
+    "expected": 202,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 22,
+    "method": "POST",
+    "endpoint": "/api/v1/learning/tasks/complete",
+    "purpose": "Complete learning task",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 23,
+    "method": "POST",
+    "endpoint": "/api/v1/recommendations/refresh",
+    "purpose": "Refresh recommendations",
+    "status_code": 202,
+    "expected": 202,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 24,
+    "method": "GET",
+    "endpoint": "/api/v1/recommendations/feed",
+    "purpose": "Get recommendation feed",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 25,
+    "method": "POST",
+    "endpoint": "/api/v1/recommendations/feedback",
+    "purpose": "Submit recommendation feedback",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 26,
+    "method": "POST",
+    "endpoint": "/api/v1/analytics/events",
+    "purpose": "Log analytics event",
+    "status_code": 202,
+    "expected": 202,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 27,
+    "method": "GET",
+    "endpoint": "/api/v1/analytics/dashboard/student",
+    "purpose": "Get student dashboard metrics",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 28,
+    "method": "POST",
+    "endpoint": "/api/v1/analytics/ai-usage",
+    "purpose": "Log AI token usage",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 29,
+    "method": "POST",
+    "endpoint": "/api/v1/community/posts",
+    "purpose": "Create community post",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 30,
+    "method": "GET",
+    "endpoint": "/api/v1/community/posts/{post_id}",
+    "purpose": "Get single post",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 31,
+    "method": "POST",
+    "endpoint": "/api/v1/community/posts/{post_id}/comments",
+    "purpose": "Add comment to post",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 32,
+    "method": "GET",
+    "endpoint": "/api/v1/community/posts/{post_id}/comments",
+    "purpose": "Get post comments",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 33,
+    "method": "POST",
+    "endpoint": "/api/v1/community/reactions",
+    "purpose": "Add reaction to post",
+    "status_code": 201,
+    "expected": [
+      200,
+      201
+    ],
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 34,
+    "method": "GET",
+    "endpoint": "/api/v1/community/feed/latest",
+    "purpose": "Get latest community feed",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 35,
+    "method": "GET",
+    "endpoint": "/api/v1/community/feed/trending",
+    "purpose": "Get trending community feed",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 36,
+    "method": "GET",
+    "endpoint": "/api/v1/community/search",
+    "purpose": "Search posts",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 37,
+    "method": "POST",
+    "endpoint": "/api/v1/recruiters/company",
+    "purpose": "Create company",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 38,
+    "method": "POST",
+    "endpoint": "/api/v1/recruiters/jobs",
+    "purpose": "Post new job",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 39,
+    "method": "GET",
+    "endpoint": "/api/v1/recruiters/jobs",
+    "purpose": "List company jobs",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 40,
+    "method": "POST",
+    "endpoint": "/api/v1/recruiters/jobs/{job_id}/apply",
+    "purpose": "Apply for job",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 41,
+    "method": "GET",
+    "endpoint": "/api/v1/recruiters/jobs/{job_id}/applications",
+    "purpose": "View job applications",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 42,
+    "method": "PATCH",
+    "endpoint": "/api/v1/recruiters/applications/{application_id}",
+    "purpose": "Update application status",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 43,
+    "method": "POST",
+    "endpoint": "/api/v1/placements/colleges",
+    "purpose": "Create college & register officer",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 44,
+    "method": "POST",
+    "endpoint": "/api/v1/placements/drives",
+    "purpose": "Create placement drive",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 45,
+    "method": "GET",
+    "endpoint": "/api/v1/placements/drives",
+    "purpose": "List college placement drives",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 46,
+    "method": "GET",
+    "endpoint": "/api/v1/placements/drives/{drive_id}",
+    "purpose": "Get placement drive details",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 47,
+    "method": "POST",
+    "endpoint": "/api/v1/placements/drives/{drive_id}/calculate-eligibility",
+    "purpose": "Trigger drive eligibility calculation",
+    "status_code": 202,
+    "expected": [
+      200,
+      202
+    ],
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 48,
+    "method": "POST",
+    "endpoint": "/api/v1/placements/drives/{drive_id}/register",
+    "purpose": "Student registers for drive",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 49,
+    "method": "GET",
+    "endpoint": "/api/v1/placements/drives/{drive_id}/registrations",
+    "purpose": "List drive registrations",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 50,
+    "method": "PATCH",
+    "endpoint": "/api/v1/placements/registrations/{registration_id}",
+    "purpose": "Update student drive registration",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 51,
+    "method": "POST",
+    "endpoint": "/api/v1/placements/registrations/{registration_id}/offer",
+    "purpose": "Release offer letter",
+    "status_code": 201,
+    "expected": 201,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 52,
+    "method": "POST",
+    "endpoint": "/api/v1/placements/drives/{drive_id}/rank",
+    "purpose": "Trigger student ranking background task",
+    "status_code": 202,
+    "expected": 202,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 53,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/dashboard/summary",
+    "purpose": "Admin dashboard summary",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 54,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/health/check",
+    "purpose": "Admin system health check",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 55,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/health/snapshots",
+    "purpose": "Get health snapshots",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 56,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/audit/logs",
+    "purpose": "Get platform audit logs",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 57,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/roles",
+    "purpose": "Get all system roles",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 58,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/permissions",
+    "purpose": "Get all system permissions",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 59,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/flags",
+    "purpose": "Create feature flag",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 60,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/flags",
+    "purpose": "List all feature flags",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 61,
+    "method": "PUT",
+    "endpoint": "/api/v1/admin/flags/{flag_id}",
+    "purpose": "Update feature flag",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 62,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/settings",
+    "purpose": "Create platform setting",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 63,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/settings",
+    "purpose": "Get all platform settings",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 64,
+    "method": "PUT",
+    "endpoint": "/api/v1/admin/settings/{key}",
+    "purpose": "Update platform setting",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 65,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/ai/providers",
+    "purpose": "Register AI provider",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 66,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/ai/providers",
+    "purpose": "List AI providers",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 67,
+    "method": "PUT",
+    "endpoint": "/api/v1/admin/ai/providers/{name}",
+    "purpose": "Update AI provider",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 68,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/ai/models",
+    "purpose": "Register AI model",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 69,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/ai/models",
+    "purpose": "List AI models",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 70,
+    "method": "PUT",
+    "endpoint": "/api/v1/admin/ai/models/{model_name}",
+    "purpose": "Update AI model config",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 71,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/ai/prompts",
+    "purpose": "Create AI prompt template",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 72,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/ai/prompts/versions",
+    "purpose": "Create prompt version",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 73,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/ai/prompts/rollback",
+    "purpose": "Rollback prompt template",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 74,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/ai/prompts/{module}/versions",
+    "purpose": "Get prompt versions",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 75,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/ai/testing/test",
+    "purpose": "Test AI provider/model",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 76,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/moderation/queue",
+    "purpose": "Get moderation queue",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 77,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/moderation/queue/{item_id}/decision",
+    "purpose": "Submit moderation decision",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 78,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/monitoring/jobs",
+    "purpose": "Get background job history",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 79,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/monitoring/resources",
+    "purpose": "Get system resource metrics",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 80,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/maintenance/status",
+    "purpose": "Get maintenance window status",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 81,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/maintenance/schedule",
+    "purpose": "Schedule maintenance window",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 82,
+    "method": "GET",
+    "endpoint": "/api/v1/admin/announcements/active",
+    "purpose": "Get active announcements",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 83,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/announcements",
+    "purpose": "Create system announcement",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 84,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/broadcast",
+    "purpose": "Broadcast push notification",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 85,
+    "method": "POST",
+    "endpoint": "/api/v1/admin/users/{user_id}/roles/assign",
+    "purpose": "Assign role to user",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 86,
+    "method": "PUT",
+    "endpoint": "/api/v1/admin/users/{user_id}/status",
+    "purpose": "Update user account status",
+    "status_code": 200,
+    "expected": 200,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 87,
+    "method": "GET",
+    "endpoint": "/api/v1/users/me/profile",
+    "purpose": "Error check: unauthenticated -> 401",
+    "status_code": 401,
+    "expected": 401,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 88,
+    "method": "POST",
+    "endpoint": "/api/v1/auth/login",
+    "purpose": "Error check: missing password -> 422",
+    "status_code": 422,
+    "expected": 422,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 89,
+    "method": "POST",
+    "endpoint": "/api/v1/auth/register",
+    "purpose": "Error check: malformed json -> 422",
+    "status_code": 422,
+    "expected": 422,
+    "status": "PASS",
+    "frontend_connected": "YES"
+  },
+  {
+    "num": 90,
+    "method": "GET",
+    "endpoint": "/api/v1/placements/drives/{drive_id}",
+    "purpose": "Error check: non-existent drive -> 404",
+    "status_code": 404,
+    "expected": 404,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  },
+  {
+    "num": 91,
+    "method": "POST",
+    "endpoint": "/api/v1/resumes/upload",
+    "purpose": "Error check: invalid file type -> 400",
+    "status_code": 400,
+    "expected": 400,
+    "status": "PASS",
+    "frontend_connected": "Available"
+  }
+]

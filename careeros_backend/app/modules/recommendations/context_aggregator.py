@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.modules.career_discovery.models import CareerReport
-from app.modules.communication.models import CommunicationReport
-from app.modules.interviews.models import InterviewReport
+from app.modules.communication.models import CommunicationReport, CommunicationSession
+from app.modules.interviews.models import InterviewReport, InterviewSession
 from app.modules.learning.models import LearningRoadmap, SkillProgress
 from app.modules.mentor.models import CareerGoal
 from app.modules.resumes.models import ResumeAnalysis
@@ -89,7 +89,8 @@ class ContextAggregator:
         # --- Phase 8: Interview Performance ---
         interview_result = await self.session.execute(
             select(InterviewReport)
-            .where(InterviewReport.user_id == user_id)
+            .join(InterviewSession, InterviewReport.session_id == InterviewSession.id)
+            .where(InterviewSession.user_id == user_id)
             .order_by(InterviewReport.created_at.desc())
             .limit(1)
         )
@@ -103,7 +104,11 @@ class ContextAggregator:
 
         # --- Phase 9: Communication Performance ---
         comm_result = await self.session.execute(
-            select(CommunicationReport).order_by(CommunicationReport.created_at.desc()).limit(1)
+            select(CommunicationReport)
+            .join(CommunicationSession, CommunicationReport.session_id == CommunicationSession.id)
+            .where(CommunicationSession.user_id == user_id)
+            .order_by(CommunicationReport.created_at.desc())
+            .limit(1)
         )
         comm_report = comm_result.scalars().first()
         if comm_report:

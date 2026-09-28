@@ -34,7 +34,23 @@ from app.modules.recruiters.router import router as recruiters_router
 from app.modules.resumes.router import router as resumes_router
 from app.modules.users.router import router as users_router
 
-app = FastAPI(title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json")
+from contextlib import asynccontextmanager
+from app.db.base import Base
+from app.db.session import engine
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan,
+)
 
 # 1. Custom Exception Handlers
 app.add_exception_handler(Exception, global_exception_handler)

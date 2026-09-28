@@ -24,14 +24,20 @@ class Profile(AuditableBase):
     completion_percentage = Column(Integer, default=0)
 
     user = relationship("User", backref="profile", lazy="selectin")
-    educations = relationship("Education", back_populates="profile", cascade="all, delete-orphan")
-    experiences = relationship("Experience", back_populates="profile", cascade="all, delete-orphan")
-    projects = relationship("Project", back_populates="profile", cascade="all, delete-orphan")
+    educations = relationship(
+        "Education", back_populates="profile", cascade="all, delete-orphan", lazy="selectin"
+    )
+    experiences = relationship(
+        "Experience", back_populates="profile", cascade="all, delete-orphan", lazy="selectin"
+    )
+    projects = relationship(
+        "Project", back_populates="profile", cascade="all, delete-orphan", lazy="selectin"
+    )
     certifications = relationship(
-        "Certification", back_populates="profile", cascade="all, delete-orphan"
+        "Certification", back_populates="profile", cascade="all, delete-orphan", lazy="selectin"
     )
     profile_skills = relationship(
-        "ProfileSkill", back_populates="profile", cascade="all, delete-orphan"
+        "ProfileSkill", back_populates="profile", cascade="all, delete-orphan", lazy="selectin"
     )
 
 

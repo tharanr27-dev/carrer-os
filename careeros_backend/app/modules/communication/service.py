@@ -73,19 +73,22 @@ class CommunicationService:
             await manager.send_json({"event_type": "SESSION_COMPLETED"}, session_id)
 
     async def _async_analyze_message(self, session_id: uuid.UUID, message_id: uuid.UUID, text: str):
+        from app.db.session import AsyncSessionLocal
         # 1. AI Linguistic Evaluation
         analysis_data = await self.eval_engine.analyze_message(text)
 
-        analysis = await self.repository.save_analysis(
-            CommunicationAnalysis(
-                message_id=message_id,
-                grammar_score=analysis_data.grammar_score,
-                vocabulary_score=analysis_data.vocabulary_score,
-                tone_score=analysis_data.tone_score,
-                clarity_score=analysis_data.clarity_score,
-                feedbacks=[fb.model_dump() for fb in analysis_data.feedbacks],
+        async with AsyncSessionLocal() as session:
+            repository = CommunicationRepository(session)
+            analysis = await repository.save_analysis(
+                CommunicationAnalysis(
+                    message_id=message_id,
+                    grammar_score=analysis_data.grammar_score,
+                    vocabulary_score=analysis_data.vocabulary_score,
+                    tone_score=analysis_data.tone_score,
+                    clarity_score=analysis_data.clarity_score,
+                    feedbacks=[fb.model_dump() for fb in analysis_data.feedbacks],
+                )
             )
-        )
 
         # 2. Push Live Feedback to WebSocket
         await manager.send_json(
@@ -101,17 +104,20 @@ class CommunicationService:
         )
 
     async def _async_generate_report(self, session_id: uuid.UUID):
+        from app.db.session import AsyncSessionLocal
         report_data = await self.eval_engine.generate_final_report([])
-        await self.repository.save_report(
-            CommunicationReport(
-                session_id=session_id,
-                overall_score=report_data.overall_score,
-                grammar_score=report_data.grammar_score,
-                vocabulary_score=report_data.vocabulary_score,
-                tone_score=report_data.tone_score,
-                fluency_score=report_data.fluency_score,
-                strengths=report_data.strengths,
-                weaknesses=report_data.weaknesses,
-                improvement_suggestions=report_data.improvement_suggestions,
+        async with AsyncSessionLocal() as session:
+            repository = CommunicationRepository(session)
+            await repository.save_report(
+                CommunicationReport(
+                    session_id=session_id,
+                    overall_score=report_data.overall_score,
+                    grammar_score=report_data.grammar_score,
+                    vocabulary_score=report_data.vocabulary_score,
+                    tone_score=report_data.tone_score,
+                    fluency_score=report_data.fluency_score,
+                    strengths=report_data.strengths,
+                    weaknesses=report_data.weaknesses,
+                    improvement_suggestions=report_data.improvement_suggestions,
+                )
             )
-        )

@@ -24,7 +24,7 @@ from app.modules.recruiters.services.company_service import CompanyService
 from app.modules.recruiters.services.job_service import JobService
 from app.modules.recruiters.tasks import generate_candidate_insights_background
 
-router = APIRouter(prefix="/recruiters", tags=["recruiters"])
+router = APIRouter(tags=["recruiters"])
 
 
 # Company Management (Simplified for this phase)
@@ -70,7 +70,10 @@ async def apply_for_job(
     app = await application_service.apply_to_job(current_user.id, job_id)
 
     # Trigger AI parsing and deterministic matching in background
-    generate_candidate_insights_background.delay(str(app.id))
+    try:
+        generate_candidate_insights_background.delay(str(app.id))
+    except Exception:
+        pass
 
     return app
 

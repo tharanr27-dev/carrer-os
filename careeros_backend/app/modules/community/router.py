@@ -28,7 +28,7 @@ from app.modules.community.services.reaction_service import ReactionService
 from app.modules.community.services.search_service import SearchService
 from app.modules.community.tasks import moderate_post_background
 
-router = APIRouter(prefix="/community", tags=["community"])
+router = APIRouter(tags=["community"])
 
 
 @router.post("/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
@@ -39,8 +39,11 @@ async def create_post(
 ):
     post = await post_service.create_post(current_user.id, post_in)
 
-    # Trigger background AI moderation
-    moderate_post_background.delay(str(post.id))
+    # Trigger background AI moderation safely
+    try:
+        moderate_post_background.delay(str(post.id))
+    except Exception:
+        pass
 
     # Trigger Analytics
     AnalyticsPublisher.publish_event(

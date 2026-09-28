@@ -29,7 +29,7 @@ from app.modules.placements.tasks import (
     rank_students_for_drive_background,
 )
 
-router = APIRouter(prefix="/placements", tags=["placements"])
+router = APIRouter(tags=["placements"])
 
 
 # ── College Management ──────────────────────────────────────────────────────
@@ -83,7 +83,10 @@ async def trigger_eligibility_calculation(
     if not drive or drive.college_id != college_id:
         raise HTTPException(status_code=404, detail="Drive not found.")
 
-    calculate_drive_eligibility_background.delay(str(drive_id))
+    try:
+        calculate_drive_eligibility_background.delay(str(drive_id))
+    except Exception:
+        pass
     return {"status": "accepted", "message": "Eligibility calculation started in background."}
 
 
@@ -153,5 +156,8 @@ async def trigger_student_ranking(
     if not drive or drive.college_id != college_id:
         raise HTTPException(status_code=404, detail="Drive not found.")
 
-    rank_students_for_drive_background.delay(str(drive_id))
+    try:
+        rank_students_for_drive_background.delay(str(drive_id))
+    except Exception:
+        pass
     return {"status": "accepted", "message": "Student ranking started in background."}

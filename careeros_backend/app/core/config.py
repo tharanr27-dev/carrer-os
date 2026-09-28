@@ -30,8 +30,14 @@ class Settings(BaseSettings):
         "OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317"
     )
 
+    DATABASE_URL: str | None = os.getenv("DATABASE_URL", None)
+
     @property
     def sqlalchemy_database_uri(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        if self.ENVIRONMENT != "production" and self.POSTGRES_SERVER == "postgres":
+            return "sqlite+aiosqlite:///./careeros.db"
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"

@@ -173,6 +173,12 @@ class AdminRepository:
         return (await self.session.execute(stmt)).scalars().first()
 
     async def create_prompt_template(self, template: PromptTemplate) -> PromptTemplate:
+        existing = await self.get_prompt_template(template.module)
+        if existing:
+            existing.description = template.description
+            await self.session.commit()
+            await self.session.refresh(existing)
+            return existing
         self.session.add(template)
         await self.session.commit()
         await self.session.refresh(template)

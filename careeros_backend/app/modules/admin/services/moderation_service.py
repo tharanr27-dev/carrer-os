@@ -55,7 +55,7 @@ class ModerationService:
             decided_by=admin_id,
             created_by=admin_id,
         )
-        await self.repo.create_moderation_decision(decision)
+        created_decision = await self.repo.create_moderation_decision(decision)
 
         # Log admin action audit
         await self.repo.log_admin_action(
@@ -68,4 +68,4 @@ class ModerationService:
             )
         )
 
-        return item
+        return created_decision

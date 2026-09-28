@@ -67,3 +67,9 @@ Thumbs.db
 
 # Misc generated files
 *.png
+*.db
+*.sqlite
+*.sqlite3
+.coverage
+htmlcov/
+.pytest_cache/

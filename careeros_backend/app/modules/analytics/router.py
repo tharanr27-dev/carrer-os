@@ -18,7 +18,7 @@ from app.modules.analytics.services.dashboard_service import DashboardService
 from app.modules.analytics.services.event_aggregator import EventAggregatorService
 from app.modules.auth.models import User
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(tags=["analytics"])
 
 
 @router.post("/events", status_code=status.HTTP_202_ACCEPTED)

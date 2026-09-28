@@ -19,8 +19,13 @@ class CompanyService:
         created_company = await self.repo.create_company(company)
 
         # Link user as admin for this company
-        profile = RecruiterProfile(user_id=user_id, company_id=created_company.id, role="admin")
-        self.repo.session.add(profile)
+        existing_profile = await self.repo.get_recruiter_profile(user_id)
+        if existing_profile:
+            existing_profile.company_id = created_company.id
+            existing_profile.role = "admin"
+        else:
+            profile = RecruiterProfile(user_id=user_id, company_id=created_company.id, role="admin")
+            self.repo.session.add(profile)
         await self.repo.session.commit()
 
         return created_company

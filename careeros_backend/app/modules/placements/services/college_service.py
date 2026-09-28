@@ -19,10 +19,15 @@ class CollegeService:
         created_college = await self.repo.create_college(college)
 
         # Assign user as Placement Officer (Admin)
-        officer = PlacementOfficer(
-            user_id=user_id, college_id=created_college.id, role_scope="admin"
-        )
-        self.repo.session.add(officer)
+        existing_officer = await self.repo.get_placement_officer(user_id)
+        if existing_officer:
+            existing_officer.college_id = created_college.id
+            existing_officer.role_scope = "admin"
+        else:
+            officer = PlacementOfficer(
+                user_id=user_id, college_id=created_college.id, role_scope="admin"
+            )
+            self.repo.session.add(officer)
         await self.repo.session.commit()
 
         return created_college

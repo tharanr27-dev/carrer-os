@@ -87,60 +87,66 @@ class LearningService:
         Background task: invokes the AI engine, recursively persists modules
         and tasks, then marks the roadmap ACTIVE.
         """
-        try:
-            ai_roadmap = await self.roadmap_engine.generate_roadmap(context)
+        from app.db.session import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
+            repository = LearningRepository(session)
+            audit_service = AuditService(session)
+            try:
+                ai_roadmap = await self.roadmap_engine.generate_roadmap(context)
 
-            # Fetch the stub record
-            roadmap = await self.session.get(LearningRoadmap, roadmap_id)
-            roadmap.title = ai_roadmap.title
-            roadmap.generation_context = context
+                # Fetch the stub record
+                roadmap = await session.get(LearningRoadmap, roadmap_id)
+                if not roadmap:
+                    return
+                roadmap.title = ai_roadmap.title
+                roadmap.generation_context = context
 
-            # Build ORM objects from AI output
-            orm_modules = []
-            for idx, ai_module in enumerate(ai_roadmap.modules):
-                orm_module = LearningModule(
-                    title=ai_module.title,
-                    description=ai_module.description,
-                    order_index=idx,
-                    estimated_hours=ai_module.estimated_hours,
-                )
-                orm_tasks = [
-                    LearningTask(
-                        title=t.title,
-                        description=t.description,
-                        resource_url=t.resource_url,
-                        resource_type=t.resource_type,
-                        estimated_minutes=t.estimated_minutes,
-                        difficulty=t.difficulty,
-                        order_index=task_idx,
+                # Build ORM objects from AI output
+                orm_modules = []
+                for idx, ai_module in enumerate(ai_roadmap.modules):
+                    orm_module = LearningModule(
+                        title=ai_module.title,
+                        description=ai_module.description,
+                        order_index=idx,
+                        estimated_hours=ai_module.estimated_hours,
                     )
-                    for task_idx, t in enumerate(ai_module.tasks)
-                ]
-                orm_module.tasks = orm_tasks
-                orm_modules.append(orm_module)
+                    orm_tasks = [
+                        LearningTask(
+                            title=t.title,
+                            description=t.description,
+                            resource_url=t.resource_url,
+                            resource_type=t.resource_type,
+                            estimated_minutes=t.estimated_minutes,
+                            difficulty=t.difficulty,
+                            order_index=task_idx,
+                        )
+                        for task_idx, t in enumerate(ai_module.tasks)
+                    ]
+                    orm_module.tasks = orm_tasks
+                    orm_modules.append(orm_module)
 
-            await self.repository.bulk_create_modules_and_tasks(roadmap_id, orm_modules)
+                await repository.bulk_create_modules_and_tasks(roadmap_id, orm_modules)
 
-            # Mark as ACTIVE
-            roadmap.status = "ACTIVE"
-            await self.session.commit()
+                # Mark as ACTIVE
+                roadmap.status = "ACTIVE"
+                await session.commit()
 
-            # Invalidate cache
-            redis = await get_redis()
-            await redis.delete(f"user:{user_id}:learning:active_roadmap")
+                # Invalidate cache
+                redis = await get_redis()
+                await redis.delete(f"user:{user_id}:learning:active_roadmap")
 
-            await self.audit_service.log_action(
-                user_id, "ROADMAP_GENERATED", "LearningRoadmap", str(roadmap_id)
-            )
+                await audit_service.log_action(
+                    user_id, "ROADMAP_GENERATED", "LearningRoadmap", str(roadmap_id)
+                )
 
-            logger.info(f"Roadmap {roadmap_id} generated and persisted for user {user_id}")
+                logger.info(f"Roadmap {roadmap_id} generated and persisted for user {user_id}")
 
-        except Exception as exc:
-            logger.error(f"Roadmap generation failed for {roadmap_id}: {exc}")
-            roadmap = await self.session.get(LearningRoadmap, roadmap_id)
-            if roadmap:
-                roadmap.status = "FAILED"
-                await self.session.commit()
+            except Exception as exc:
+                logger.error(f"Roadmap generation failed for {roadmap_id}: {exc}")
+                roadmap = await session.get(LearningRoadmap, roadmap_id)
+                if roadmap:
+                    roadmap.status = "FAILED"
+                    await session.commit()
 
     # ------------------------------------------------------------------
     # Active Roadmap Retrieval (Redis-Cached)

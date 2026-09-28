@@ -29,6 +29,7 @@ class LearningRoadmap(AuditableBase):
         back_populates="roadmap",
         cascade="all, delete-orphan",
         order_by="LearningModule.order_index.asc()",
+        lazy="selectin",
     )
     report = relationship(
         "LearningReport", uselist=False, back_populates="roadmap", cascade="all, delete-orphan"
@@ -55,6 +56,7 @@ class LearningModule(AuditableBase):
         back_populates="module",
         cascade="all, delete-orphan",
         order_by="LearningTask.order_index.asc()",
+        lazy="selectin",
     )
 
 

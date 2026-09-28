@@ -49,8 +49,7 @@ except Exception as e:
     issues.append(f"SocialLinks error: {e}")
 
 # 4. Test UserStatus based is_active logic
-u = User.__new__(User)
-u.status = UserStatus.ACTIVE
+u = User(status=UserStatus.ACTIVE)
 is_active_via_status = u.status == UserStatus.ACTIVE
 print(f"[UserStatus] ACTIVE check via status: {is_active_via_status}")
 
