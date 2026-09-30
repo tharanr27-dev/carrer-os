@@ -1,5 +1,5 @@
-import { NotificationCenter } from "@/features/platform/module-screens";
+import { NotificationCenterView } from "@/features/platform/utility-screens";
 
 export default function NotificationCenterPage() {
-  return <NotificationCenter />;
+  return <NotificationCenterView />;
 }

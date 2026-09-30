@@ -37,6 +37,28 @@ class RecruiterRepository:
         stmt = select(Job).where(Job.company_id == company_id).offset(offset).limit(limit)
         return (await self.session.execute(stmt)).scalars().all()
 
+    async def get_open_jobs(self, limit: int = 100, offset: int = 0) -> list:
+        """Open jobs across all companies, joined with the company name (candidate-facing)."""
+        stmt = (
+            select(Job, Company.name)
+            .join(Company, Company.id == Job.company_id)
+            .where(Job.status == "open")
+            .order_by(Job.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return (await self.session.execute(stmt)).all()
+
+    async def get_applications_by_candidate(self, candidate_id: uuid.UUID) -> list:
+        stmt = (
+            select(Application, Job.title, Company.name)
+            .join(Job, Job.id == Application.job_id)
+            .join(Company, Company.id == Job.company_id)
+            .where(Application.candidate_id == candidate_id)
+            .order_by(Application.created_at.desc())
+        )
+        return (await self.session.execute(stmt)).all()
+
     async def create_application(self, application: Application) -> Application:
         self.session.add(application)
         await self.session.commit()

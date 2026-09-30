@@ -70,7 +70,7 @@ class CommunityRepository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def add_reaction(self, reaction: Reaction) -> Reaction:
+    async def add_reaction(self, reaction: Reaction) -> Reaction | None:
         # Check if already reacted
         stmt = select(Reaction).where(
             Reaction.user_id == reaction.user_id,
@@ -83,4 +83,4 @@ class CommunityRepository:
             await self.session.commit()
             await self.session.refresh(reaction)
             return reaction
-        return existing
+        return None  # already reacted: callers must not double-count

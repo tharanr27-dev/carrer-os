@@ -4,13 +4,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import require_permissions
+from app.core.dependencies import get_current_user, require_permissions
 from app.core.responses import success_response
 from app.db.session import get_db
 
 # Schemas
 from app.modules.admin.schemas import (
     AdminActionResponse,
+    AdminUserResponse,
     AdminDashboardSummary,
     AIProviderTestRequest,
     AIProviderTestResponse,
@@ -277,6 +278,29 @@ async def system_health_check(
 
 
 # ── User Administration Control ──────────────────────────────────────────────
+@router.get("/users")
+async def list_users(
+    limit: int = 100,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_permissions(["admin:read"])),
+):
+    users = await UserAdminService(db).list_users(limit, offset)
+    return success_response(
+        data=[
+            AdminUserResponse(
+                id=u.id,
+                email=u.email,
+                status=u.status.value,
+                roles=sorted(r.name for r in u.roles),
+                created_at=u.created_at,
+            )
+            for u in users
+        ],
+        message="Users retrieved successfully",
+    )
+
+
 @router.put("/users/{user_id}/status")
 async def update_user_status(
     user_id: uuid.UUID,
@@ -287,7 +311,10 @@ async def update_user_status(
 ):
     service = UserAdminService(db)
     resolved_status = (payload.status if payload else None) or status_str or "ACTIVE"
-    user = await service.update_user_status(admin.id, user_id, resolved_status.upper())
+    try:
+        user = await service.update_user_status(admin.id, user_id, resolved_status.upper())
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid status: {resolved_status}")
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     status_val = user.status.value if hasattr(user.status, "value") else str(user.status)
@@ -489,7 +516,7 @@ async def get_model_configs(
 # ── Active Announcements (public endpoint for platform display) ────────
 @router.get("/announcements/active")
 async def get_active_announcements(
-    db: AsyncSession = Depends(get_db), admin: User = Depends(require_permissions(["admin:read"]))
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     service = AnnouncementService(db)
     anns = await service.get_active_announcements()

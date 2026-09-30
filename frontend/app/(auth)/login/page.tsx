@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
-import { useAuthStore } from "@/store/useAuthStore";
+import { HOME_PATH, useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Chrome, Github, ShieldAlert } from "lucide-react";
@@ -13,7 +13,6 @@ import { Chrome, Github, ShieldAlert } from "lucide-react";
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["student", "recruiter", "officer", "admin"] as const),
   rememberMe: z.boolean().optional(),
 });
 
@@ -32,7 +31,6 @@ export default function LoginPage() {
     defaultValues: {
       email: "",
       password: "",
-      role: "student",
       rememberMe: false,
     },
   });
@@ -40,12 +38,13 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setErrorMessage(null);
     try {
-      const success = await login(data.email, data.password, data.role);
+      const success = await login(data.email, data.password);
       if (success) {
-        // Successful login, redirect to dashboard based on role
-        window.location.href = `/${data.role}`;
+        // The backend decides the role; send the user to that role's dashboard.
+        const { user } = useAuthStore.getState();
+        window.location.href = user ? HOME_PATH[user.role] : "/student";
       } else {
-        setErrorMessage("Invalid credentials. Try again.");
+        setErrorMessage(useAuthStore.getState().error ?? "Sign in failed. Please try again.");
       }
     } catch {
       setErrorMessage("An error occurred. Please try again.");
@@ -101,20 +100,6 @@ export default function LoginPage() {
           {errors.password && (
             <p className="text-[10px] text-destructive font-medium">{errors.password.message}</p>
           )}
-        </div>
-
-        {/* Persona Select */}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-foreground">Sign In Persona (Dashboard Access)</label>
-          <select
-            {...register("role")}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring transition-all"
-          >
-            <option value="student">Student Dashboard</option>
-            <option value="recruiter">Recruiter Dashboard</option>
-            <option value="officer">Placement Officer Dashboard</option>
-            <option value="admin">Platform Admin Dashboard</option>
-          </select>
         </div>
 
         {/* Remember Me */}

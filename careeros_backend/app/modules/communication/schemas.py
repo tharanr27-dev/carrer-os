@@ -18,6 +18,21 @@ class CommunicationSessionResponse(BaseModel):
         from_attributes = True
 
 
+class CommunicationReportResponse(BaseModel):
+    session_id: UUID4
+    overall_score: float
+    grammar_score: float
+    vocabulary_score: float
+    tone_score: float
+    fluency_score: float
+    strengths: List[str] = []
+    weaknesses: List[str] = []
+    improvement_suggestions: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+
 class CommunicationSocketEvent(BaseModel):
     event_type: str  # e.g., MESSAGE_SUBMITTED, FINISH_SESSION
     payload: Dict[str, Any]

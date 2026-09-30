@@ -38,6 +38,10 @@ class UserAdminService:
         )
         return user
 
+    async def list_users(self, limit: int = 100, offset: int = 0) -> List[User]:
+        stmt = select(User).order_by(User.created_at.desc()).offset(offset).limit(limit)
+        return list((await self.db.execute(stmt)).scalars().all())
+
     async def get_users_by_role(
         self, role_name: str, limit: int = 50, offset: int = 0
     ) -> List[User]:

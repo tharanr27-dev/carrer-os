@@ -53,6 +53,31 @@ class PlacementRepository:
         )
         return (await self.session.execute(stmt)).scalars().all()
 
+    async def get_available_drives(self, limit: int = 100) -> List[PlacementDrive]:
+        stmt = (
+            select(PlacementDrive)
+            .where(PlacementDrive.status.in_(["Upcoming", "Ongoing"]))
+            .order_by(PlacementDrive.created_at.desc())
+            .limit(limit)
+        )
+        return (await self.session.execute(stmt)).scalars().all()
+
+    async def get_student_registrations(self, student_id: uuid.UUID) -> List[DriveRegistration]:
+        stmt = (
+            select(DriveRegistration)
+            .where(DriveRegistration.student_id == student_id)
+            .order_by(DriveRegistration.created_at.desc())
+        )
+        return (await self.session.execute(stmt)).scalars().all()
+
+    async def get_student_registration_for_drive(
+        self, drive_id: uuid.UUID, student_id: uuid.UUID
+    ) -> Optional[DriveRegistration]:
+        stmt = select(DriveRegistration).where(
+            DriveRegistration.drive_id == drive_id, DriveRegistration.student_id == student_id
+        )
+        return (await self.session.execute(stmt)).scalars().first()
+
     async def create_drive_registration(self, registration: DriveRegistration) -> DriveRegistration:
         self.session.add(registration)
         await self.session.commit()

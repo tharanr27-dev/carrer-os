@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CareerOS AI
 
-## Getting Started
+Next.js 15 frontend (`frontend/`) + FastAPI backend (`careeros_backend/`).
+Every screen talks to the real API: `UI → lib/api.ts → /api/v1/... → service → database → response → UI`.
 
-First, run the development server:
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Backend (SQLite by default in development, see careeros_backend/.env)
+cd careeros_backend
+pip install -r requirements.txt
+python -m scripts.seed_dev          # RBAC roles, admin user, one career assessment (idempotent)
+python -m uvicorn app.main:app --port 8000
+
+# 2. Frontend
+cd frontend
+cp .env.example .env.local          # NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
+npm install
+npm run dev                         # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Admin sign-in after seeding: `admin@careeros.ai` / `AdminPass123!` (override with `SEED_ADMIN_EMAIL` /
+`SEED_ADMIN_PASSWORD`). Everyone else registers through the UI.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Roles
+The backend decides the role, the UI never lets you pick one at sign-in:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role | How a user gets it |
+|------|--------------------|
+| Admin | RBAC permission `admin:*` (seed script, or `POST /admin/users/{id}/roles/assign`) |
+| Recruiter | Creates a company (`POST /recruiters/company`) - the recruiter portal shows this setup step first |
+| Placement officer | Registers a college (`POST /placements/colleges`) - the officer portal shows this setup step first |
+| Student | Default |
 
-## Learn More
+`GET /auth/me` returns roles, permissions, `company_id` and `college_id`; the frontend derives the portal from it.
 
-To learn more about Next.js, take a look at the following resources:
+### Environment
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `NEXT_PUBLIC_API_BASE_URL` | frontend | API base URL including `/api/v1` |
+| `BACKEND_CORS_ORIGINS` | backend | Comma-separated allowed origins (`*` falls back to local dev origins) |
+| `RATE_LIMIT_PER_MINUTE` | backend | Per-IP request limit (default 100) |
+| `DATABASE_URL` | backend | SQLAlchemy URL; SQLite in dev, PostgreSQL in production |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tests
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# Backend unit/contract tests (no external services needed)
+cd careeros_backend && python -m pytest
 
-## Deploy on Vercel
+# Live API contract test: exercises every endpoint the frontend calls, all four roles,
+# positive + negative paths, WebSockets included. Run against a freshly seeded backend:
+DATABASE_URL=sqlite+aiosqlite:///./careeros_e2e.db RATE_LIMIT_PER_MINUTE=100000 python -m scripts.seed_dev
+DATABASE_URL=sqlite+aiosqlite:///./careeros_e2e.db RATE_LIMIT_PER_MINUTE=100000 python -m uvicorn app.main:app --port 8000
+python -m scripts.e2e_live
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Frontend
+cd frontend && npx tsc --noEmit && npm run lint && npm run build
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Real-browser end-to-end (needs backend on :8000 and `npm run build && npm start` on :3000)
+cd e2e && npm install
+npm run student && npm run roles    # set BROWSER_PATH to a Chrome/Edge executable if not on the default path
+```
+
+## Known limits
+- **AI output is placeholder.** The AI gateway is an echo/mock provider, so mentor replies, resume/interview/communication
+  scores, roadmaps and recommendations are canned. The wiring is real; configure a real provider to get real content.
+- **Redis/Celery are optional in development.** Redis is an in-memory stub and Celery tasks are enqueued best-effort
+  (never blocking a request). Without a worker, eligibility calculation and ranking are accepted but not executed.
+- **No password reset / email verification / OTP endpoints yet.** Those screens say so instead of pretending.
+- Settings that have no backend (notification/privacy/language preferences, password change, device sessions) are shown disabled.
+- Candidate/student names are not exposed by the API, so recruiter and officer lists show short IDs.

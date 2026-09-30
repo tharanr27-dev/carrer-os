@@ -2,9 +2,9 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CommunicationCoach } from "@/features/platform/module-screens";
+import { CommunicationCoachView } from "@/features/student/communication";
 
-export default function CommunicationPage() {
+export default function Page() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -14,5 +14,5 @@ export default function CommunicationPage() {
     }
   }, [pathname, router]);
 
-  return <CommunicationCoach />;
+  return <CommunicationCoachView />;
 }

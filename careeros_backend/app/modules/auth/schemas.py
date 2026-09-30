@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 from pydantic import UUID4, BaseModel, EmailStr
 
 
@@ -25,3 +27,16 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class MeResponse(UserResponse):
+    """Current session identity: RBAC roles/permissions plus org linkage."""
+
+    roles: List[str] = []
+    permissions: List[str] = []
+    company_id: Optional[UUID4] = None
+    college_id: Optional[UUID4] = None

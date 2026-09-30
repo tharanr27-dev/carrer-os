@@ -1,26 +1,43 @@
 "use client";
 
 import React from "react";
-import { useAuthStore } from "@/store/useAuthStore";
+import { usePathname, useRouter } from "next/navigation";
+import { HOME_PATH, useAuthStore, UserRole } from "@/store/useAuthStore";
 import { Sidebar } from "@/components/ui/sidebar";
 import { TopNav } from "@/components/ui/top-nav";
 import { FloatingMentor } from "@/features/mentor/components/floating-mentor";
+
+/** Portals only their own role may open (the backend enforces the same rules). */
+const PORTAL_ROLE: Record<string, UserRole> = {
+  "/recruiter": "recruiter",
+  "/officer": "officer",
+  "/admin": "admin",
+};
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isInitializing, init } = useAuthStore();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Restore the session from stored tokens on first load.
+  React.useEffect(() => {
+    if (isInitializing) void init();
+  }, [isInitializing, init]);
+
+  const portal = Object.keys(PORTAL_ROLE).find((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const forbidden = Boolean(user && portal && PORTAL_ROLE[portal] !== user.role);
 
   React.useEffect(() => {
-    // If not authenticated, redirect to login page
-    if (!isAuthenticated) {
-      window.location.href = "/login";
-    }
-  }, [isAuthenticated]);
+    if (isInitializing) return;
+    if (!isAuthenticated) router.replace("/login");
+    else if (forbidden && user) router.replace(HOME_PATH[user.role]);
+  }, [isInitializing, isAuthenticated, forbidden, user, router]);
 
-  if (!isAuthenticated) {
+  if (isInitializing || !isAuthenticated || forbidden) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center space-y-4">

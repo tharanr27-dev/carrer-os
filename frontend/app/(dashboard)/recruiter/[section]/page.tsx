@@ -1,5 +1,9 @@
-import { PortalDashboard } from "@/features/platform/module-screens";
+"use client";
 
-export default function RecruiterSectionPage() {
-  return <PortalDashboard type="recruiter" />;
+import { useParams } from "next/navigation";
+import { RecruiterPortal } from "@/features/recruiter/recruiter-portal";
+
+export default function RecruiterPortalSectionPage() {
+  const { section } = useParams<{ section: string }>();
+  return <RecruiterPortal section={section} />;
 }

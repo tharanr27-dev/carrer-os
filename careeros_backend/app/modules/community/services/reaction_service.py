@@ -1,5 +1,6 @@
 import uuid
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.community.models import Reaction
@@ -13,6 +14,10 @@ class ReactionService:
         self.db = db
 
     async def add_reaction(self, user_id: uuid.UUID, reaction_in: ReactionCreate) -> Reaction:
+        if reaction_in.entity_type == "post" and not await self.repo.get_post_by_id(
+            reaction_in.entity_id
+        ):
+            raise HTTPException(status_code=404, detail="Post not found.")
         reaction = Reaction(
             user_id=user_id,
             entity_type=reaction_in.entity_type,

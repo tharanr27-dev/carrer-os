@@ -45,6 +45,24 @@ async def get_current_user(
     return user
 
 
+async def get_user_from_token(token: str | None, db: AsyncSession) -> User | None:
+    """Resolves an access token to an active user; returns None instead of raising.
+
+    Used by WebSocket endpoints, which cannot send an Authorization header from browsers.
+    """
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "access":
+            return None
+        user_id = uuid.UUID(payload.get("sub", ""))
+    except (JWTError, ValueError):
+        return None
+    user = await AuthRepository(db).get_user_by_id(user_id)
+    return user if user and user.is_active else None
+
+
 def require_permissions(required_permissions: list[str]):
     async def permission_checker(current_user: User = Depends(get_current_user)) -> User:
         user_permissions = set()

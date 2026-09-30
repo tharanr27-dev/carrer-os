@@ -2,9 +2,9 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { MentorWorkspace } from "@/features/platform/module-screens";
+import { MentorWorkspaceView } from "@/features/student/mentor";
 
-export default function MentorPage() {
+export default function Page() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -14,5 +14,5 @@ export default function MentorPage() {
     }
   }, [pathname, router]);
 
-  return <MentorWorkspace />;
+  return <MentorWorkspaceView />;
 }

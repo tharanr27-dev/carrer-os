@@ -30,6 +30,9 @@ class PlacementDriveService:
     async def get_drive(self, drive_id: uuid.UUID) -> Optional[PlacementDrive]:
         return await self.repo.get_placement_drive(drive_id)
 
+    async def get_available_drives(self, limit: int = 100) -> List[PlacementDrive]:
+        return await self.repo.get_available_drives(limit)
+
     async def get_college_drives(
         self, college_id: uuid.UUID, limit: int = 50, offset: int = 0
     ) -> List[PlacementDrive]:

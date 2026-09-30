@@ -1,5 +1,15 @@
 import { create } from "zustand";
-import { api, ProfileResponse } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  clearStoredTokens,
+  errorMessage,
+  getStoredTokens,
+  MeResponse,
+  onSessionExpired,
+  ProfileResponse,
+  setStoredTokens,
+} from "@/lib/api";
 
 export type UserRole = "student" | "recruiter" | "officer" | "admin";
 
@@ -9,220 +19,192 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
-  company?: string; // Recruiter specific
-  college?: string; // Placement Officer specific
   title?: string;
+  permissions: string[];
+  companyId: string | null;
+  collegeId: string | null;
+  /** Recruiter/officer who has registered but not yet created their company/college. */
+  needsOrgSetup: boolean;
 }
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  /** True while the initial session restore (stored tokens -> /auth/me) is running. */
+  isInitializing: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, role?: UserRole) => Promise<boolean>;
-  register: (name: string, email: string, password: string, role: UserRole) => Promise<boolean>;
+  error: string | null;
+  init: () => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, role: Exclude<UserRole, "admin">) => Promise<boolean>;
   logout: () => void;
-  switchRole: (role: UserRole) => void;
-  updateUser: (updatedUser: Partial<User>) => Promise<void>;
+  refreshUser: () => Promise<void>;
+  updateUser: (updated: { name?: string; title?: string; avatar?: string }) => Promise<void>;
 }
 
-const mockUsers: Record<UserRole, User> = {
-  student: {
-    id: "stu-101",
-    name: "Alex Morgan",
-    email: "alex.morgan@university.edu",
-    role: "student",
-    title: "Computer Science Junior",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
-  },
-  recruiter: {
-    id: "rec-202",
-    name: "Sarah Jenkins",
-    email: "sjenkins@stripe.com",
-    role: "recruiter",
-    title: "Senior Tech Talent Lead",
-    company: "Stripe",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200",
-  },
-  officer: {
-    id: "off-303",
-    name: "Dr. Robert Chen",
-    email: "robert.chen@university.edu",
-    role: "officer",
-    title: "Director of Career Services & Placement",
-    college: "Stanford School of Engineering",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200",
-  },
-  admin: {
-    id: "adm-404",
-    name: "Elena Rostova",
-    email: "elena.r@careeros.ai",
-    role: "admin",
-    title: "Chief System Administrator",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=200",
-  },
+export const HOME_PATH: Record<UserRole, string> = {
+  student: "/student",
+  recruiter: "/recruiter",
+  officer: "/officer",
+  admin: "/admin",
 };
 
-const TOKEN_STORAGE_KEY = "careeros_auth_tokens";
-
-interface StoredTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-function getStoredTokens(): StoredTokens | null {
-  if (typeof window === "undefined") return null;
-
-  const rawTokens = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (!rawTokens) return null;
-
-  try {
-    return JSON.parse(rawTokens) as StoredTokens;
-  } catch {
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    return null;
-  }
-}
-
-function setStoredTokens(tokens: StoredTokens) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
-}
-
-function clearStoredTokens() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-}
+const REGISTRATION_TITLES: Record<Exclude<UserRole, "admin">, string> = {
+  student: "Undergraduate Student",
+  recruiter: "Hiring Manager",
+  officer: "Placement Executive",
+};
 
 function splitName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  return {
-    firstName: parts[0] ?? "",
-    lastName: parts.slice(1).join(" "),
-  };
+  return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
 }
 
-function profileToName(profile?: ProfileResponse | null) {
+function profileName(profile: ProfileResponse | null): string | null {
   const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
   return name || null;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: mockUsers.student, // Default to student role for testing convenience
-  isAuthenticated: true,
+/**
+ * Role comes from the backend: admin = admin RBAC permission, recruiter = linked to a company,
+ * officer = registered placement officer. Before the org exists, the role chosen at sign-up
+ * (stored in the profile) decides which portal shows the setup step. Admin is never self-selected.
+ */
+function deriveRole(me: MeResponse, profile: ProfileResponse | null): { role: UserRole; needsOrgSetup: boolean } {
+  if (me.permissions.some((p) => p.startsWith("admin:"))) return { role: "admin", needsOrgSetup: false };
+  if (me.company_id) return { role: "recruiter", needsOrgSetup: false };
+  if (me.college_id) return { role: "officer", needsOrgSetup: false };
+
+  const selected = profile?.role_specific_data?.selected_role;
+  if (selected === "recruiter") return { role: "recruiter", needsOrgSetup: true };
+  if (selected === "officer") return { role: "officer", needsOrgSetup: true };
+  return { role: "student", needsOrgSetup: false };
+}
+
+function buildUser(me: MeResponse, profile: ProfileResponse | null): User {
+  const { role, needsOrgSetup } = deriveRole(me, profile);
+  return {
+    id: me.id,
+    name: profileName(profile) ?? me.email.split("@")[0],
+    email: me.email,
+    role,
+    avatar: profile?.profile_image_url ?? undefined,
+    title: profile?.headline ?? undefined,
+    permissions: me.permissions,
+    companyId: me.company_id,
+    collegeId: me.college_id,
+    needsOrgSetup,
+  };
+}
+
+async function loadUser(): Promise<User> {
+  const me = await api.me();
+  const profile = await api.getProfile().catch(() => null);
+  return buildUser(me, profile);
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  isInitializing: true,
   isLoading: false,
+  error: null,
 
-  login: async (email, password, forcedRole) => {
-    set({ isLoading: true });
-
+  init: async () => {
+    if (!getStoredTokens()) {
+      set({ user: null, isAuthenticated: false, isInitializing: false });
+      return;
+    }
     try {
-      const role = forcedRole || "student";
+      const user = await loadUser();
+      set({ user, isAuthenticated: true, isInitializing: false });
+    } catch (error) {
+      // Only an auth failure ends the session; a network blip keeps tokens for the next try.
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) clearStoredTokens();
+      set({ user: null, isAuthenticated: false, isInitializing: false, error: errorMessage(error) });
+    }
+  },
+
+  login: async (email, password) => {
+    set({ isLoading: true, error: null });
+    try {
       const tokens = await api.login(email, password);
-      setStoredTokens({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-      });
-
-      const profileResponse = await api.getProfile(tokens.access_token).catch(() => null);
-      const profile = profileResponse?.data ?? null;
-      const profileName = profileToName(profile);
-      const selectedUser = {
-        ...mockUsers[role],
-        id: profile?.user_id ?? mockUsers[role].id,
-        name: profileName ?? mockUsers[role].name,
-        email,
-        role,
-        title: profile?.headline ?? mockUsers[role].title,
-        avatar: profile?.profile_image_url ?? mockUsers[role].avatar,
-      };
-
-      set({
-        user: selectedUser,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      setStoredTokens({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+      const user = await loadUser();
+      set({ user, isAuthenticated: true, isLoading: false });
       return true;
     } catch (error) {
-      console.error("Login failed", error);
       clearStoredTokens();
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      set({ user: null, isAuthenticated: false, isLoading: false, error: errorMessage(error) });
       return false;
     }
   },
 
   register: async (name, email, password, role) => {
-    set({ isLoading: true });
-
+    set({ isLoading: true, error: null });
     try {
-      const registeredUser = await api.register(email, password);
+      await api.register(email, password);
       const tokens = await api.login(email, password);
-      setStoredTokens({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-      });
+      setStoredTokens({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
 
       const { firstName, lastName } = splitName(name);
-      await api.updateProfile(tokens.access_token, {
+      await api.updateProfile({
         first_name: firstName,
         last_name: lastName,
-        headline:
-          role === "student"
-            ? "Undergraduate Student"
-            : role === "recruiter"
-              ? "Hiring Manager"
-              : role === "officer"
-                ? "Placement Executive"
-                : "Platform Moderator",
-        profile_image_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        headline: REGISTRATION_TITLES[role],
         role_specific_data: { selected_role: role },
       });
 
-      const newUser: User = {
-        id: registeredUser.id,
-        name,
-        email,
-        role,
-        title: role === "student" ? "Undergraduate Student" : role === "recruiter" ? "Hiring Manager" : role === "officer" ? "Placement Executive" : "Platform Moderator",
-        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${name}`,
-      };
-
-      set({
-        user: newUser,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      const user = await loadUser();
+      set({ user, isAuthenticated: true, isLoading: false });
       return true;
     } catch (error) {
-      console.error("Registration failed", error);
       clearStoredTokens();
-      set({ isLoading: false });
+      set({ user: null, isAuthenticated: false, isLoading: false, error: errorMessage(error) });
       return false;
     }
   },
 
   logout: () => {
     clearStoredTokens();
-    set({ user: null, isAuthenticated: false });
+    set({ user: null, isAuthenticated: false, error: null });
   },
 
-  switchRole: (role) => {
-    set({ user: mockUsers[role], isAuthenticated: true });
-  },
-
-  updateUser: async (updatedUser) => {
-    const tokens = getStoredTokens();
-
-    if (tokens?.accessToken && updatedUser.name) {
-      const { firstName, lastName } = splitName(updatedUser.name);
-      await api.updateProfile(tokens.accessToken, {
-        first_name: firstName,
-        last_name: lastName,
-        headline: updatedUser.title,
-        profile_image_url: updatedUser.avatar,
-      });
+  refreshUser: async () => {
+    try {
+      set({ user: await loadUser() });
+    } catch (error) {
+      set({ error: errorMessage(error) });
     }
+  },
 
-    set((state) => ({
-      user: state.user ? { ...state.user, ...updatedUser } : null,
-    }));
+  updateUser: async (updated) => {
+    const current = get().user;
+    if (!current) return;
+
+    const payload: Parameters<typeof api.updateProfile>[0] = {};
+    if (updated.name !== undefined) {
+      const { firstName, lastName } = splitName(updated.name);
+      payload.first_name = firstName;
+      payload.last_name = lastName;
+    }
+    if (updated.title !== undefined) payload.headline = updated.title;
+    if (updated.avatar !== undefined) payload.profile_image_url = updated.avatar;
+
+    // Persist first; only reflect the change in the UI once the backend accepted it.
+    const profile = await api.updateProfile(payload);
+    set({
+      user: {
+        ...current,
+        name: profileName(profile) ?? current.name,
+        title: profile.headline ?? current.title,
+        avatar: profile.profile_image_url ?? current.avatar,
+      },
+    });
   },
 }));
+
+// An unrecoverable 401 anywhere in the app ends the session.
+onSessionExpired(() => {
+  useAuthStore.setState({ user: null, isAuthenticated: false });
+});

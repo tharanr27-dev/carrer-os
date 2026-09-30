@@ -2,9 +2,9 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { JobPortal } from "@/features/platform/module-screens";
+import { JobBoard } from "@/features/student/jobs";
 
-export default function JobPortalPage() {
+export default function Page() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -14,5 +14,5 @@ export default function JobPortalPage() {
     }
   }, [pathname, router]);
 
-  return <JobPortal />;
+  return <JobBoard />;
 }

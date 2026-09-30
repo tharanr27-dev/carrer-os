@@ -1,6 +1,7 @@
 import uuid
 from typing import List, Optional
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.community.models import CommunityPost
@@ -26,10 +27,11 @@ class PostService:
 
     async def get_post(self, post_id: uuid.UUID) -> Optional[CommunityPost]:
         post = await self.repo.get_post_by_id(post_id)
-        if post:
-            # Increment view count
-            post.views_count += 1
-            await self.repo.update_post(post)
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found.")
+        # Increment view count
+        post.views_count += 1
+        await self.repo.update_post(post)
         return post
 
     async def get_recent_posts(self, limit: int = 20, offset: int = 0) -> List[CommunityPost]:

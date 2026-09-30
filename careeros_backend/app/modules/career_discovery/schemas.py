@@ -15,6 +15,28 @@ class AssessmentSubmitRequest(BaseModel):
     answers: List[AnswerSubmission]
 
 
+class AssessmentQuestionResponse(BaseModel):
+    id: UUID4
+    question_text: str
+    question_type: str
+    options: Optional[List[str]] = None
+    order_index: int
+
+    class Config:
+        from_attributes = True
+
+
+class AssessmentTemplateResponse(BaseModel):
+    id: UUID4
+    title: str
+    description: Optional[str] = None
+    version: Optional[str] = None
+    questions: List[AssessmentQuestionResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
 class CareerMatchResponse(BaseModel):
     job_title: str
     suitability_score: float

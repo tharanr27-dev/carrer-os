@@ -1,5 +1,5 @@
-import { CommunityHub } from "@/features/platform/module-screens";
+import { CommunityHubView } from "@/features/community/community-hub";
 
 export default function CommunityPage() {
-  return <CommunityHub />;
+  return <CommunityHubView />;
 }

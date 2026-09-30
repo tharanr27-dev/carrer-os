@@ -2,9 +2,9 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { TrainingAcademy } from "@/features/platform/module-screens";
+import { TrainingAcademyView } from "@/features/student/learning";
 
-export default function AcademyPage() {
+export default function Page() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -14,5 +14,5 @@ export default function AcademyPage() {
     }
   }, [pathname, router]);
 
-  return <TrainingAcademy />;
+  return <TrainingAcademyView />;
 }

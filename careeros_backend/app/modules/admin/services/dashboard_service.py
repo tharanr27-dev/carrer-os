@@ -1,11 +1,16 @@
 import uuid
 from typing import Any, Dict
 
+from datetime import datetime, timezone
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.cache.redis import get_redis
+from app.modules.admin.models import ModerationQueue
 from app.modules.admin.repository import AdminRepository
 from app.modules.admin.schemas import AIProviderTestRequest, AIProviderTestResponse
+from app.modules.analytics.models import AIUsageAnalytics
+from app.modules.auth.models import User, UserStatus
 
 
 class AdminDashboardService:
@@ -14,31 +19,46 @@ class AdminDashboardService:
         self.db = db
 
     async def get_dashboard_summary(self) -> Dict[str, Any]:
-        redis = await get_redis()
-        cache_key = "admin:dashboard:summary"
+        """Live aggregates straight from the database (cheap indexed counts/sums)."""
+        now = datetime.now(timezone.utc)
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = day_start.replace(day=1)
 
-        # Check cache
-        cached = await redis.get(cache_key)
-        if cached:
-            import json
+        async def scalar(stmt):
+            return (await self.db.execute(stmt)).scalar() or 0
 
-            return json.loads(cached)
+        total_users = await scalar(select(func.count(User.id)))
+        active_users = await scalar(
+            select(func.count(User.id)).where(User.status == UserStatus.ACTIVE)
+        )
+        pending = await scalar(
+            select(func.count(ModerationQueue.id)).where(ModerationQueue.status == "pending")
+        )
+        unresolved = await scalar(
+            select(func.count(ModerationQueue.id)).where(
+                ModerationQueue.status.in_(["pending", "escalated"])
+            )
+        )
+        tokens_today = await scalar(
+            select(func.coalesce(func.sum(AIUsageAnalytics.total_tokens), 0)).where(
+                AIUsageAnalytics.created_at >= day_start
+            )
+        )
+        cost_month = await scalar(
+            select(func.coalesce(func.sum(AIUsageAnalytics.estimated_cost_usd), 0.0)).where(
+                AIUsageAnalytics.created_at >= month_start
+            )
+        )
 
-        # Fallback pre-aggregated mock calculation (production query summary maps metrics tables)
-        data = {
-            "total_users": 1500,
-            "active_users": 950,
-            "pending_moderation_count": 8,
-            "system_status": "healthy",
-            "unresolved_reports": 4,
-            "ai_daily_token_usage": 520400,
-            "ai_monthly_cost_usd": 152.20,
+        return {
+            "total_users": int(total_users),
+            "active_users": int(active_users),
+            "pending_moderation_count": int(pending),
+            "system_status": "healthy",  # the query above succeeding proves the database is up
+            "unresolved_reports": int(unresolved),
+            "ai_daily_token_usage": int(tokens_today),
+            "ai_monthly_cost_usd": round(float(cost_month), 2),
         }
-
-        import json
-
-        await redis.set(cache_key, json.dumps(data), ex=300)
-        return data
 
     async def test_ai_provider(
         self, admin_id: uuid.UUID, test_in: AIProviderTestRequest

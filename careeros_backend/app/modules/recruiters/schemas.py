@@ -53,6 +53,20 @@ class JobResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class OpenJobResponse(JobResponse):
+    company_name: Optional[str] = None
+
+
+class MyApplicationResponse(BaseModel):
+    id: UUID
+    job_id: UUID
+    job_title: Optional[str] = None
+    company_name: Optional[str] = None
+    status: str
+    fit_score: Optional[str] = None
+    created_at: datetime
+
+
 class ApplicationUpdate(BaseModel):
     status: str
 

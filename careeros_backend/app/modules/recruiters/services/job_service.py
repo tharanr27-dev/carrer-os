@@ -28,6 +28,9 @@ class JobService:
     async def get_job(self, job_id: uuid.UUID) -> Optional[Job]:
         return await self.repo.get_job(job_id)
 
+    async def get_open_jobs(self, limit: int = 100, offset: int = 0) -> list:
+        return await self.repo.get_open_jobs(limit, offset)
+
     async def get_company_jobs(
         self, company_id: uuid.UUID, limit: int = 50, offset: int = 0
     ) -> List[Job]:

@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from app.core.dependencies import get_current_user
+from app.core.tasks import enqueue
 from app.modules.auth.models import User
 from app.modules.community.dependencies import (
     get_comment_service,
@@ -40,10 +41,7 @@ async def create_post(
     post = await post_service.create_post(current_user.id, post_in)
 
     # Trigger background AI moderation safely
-    try:
-        moderate_post_background.delay(str(post.id))
-    except Exception:
-        pass
+    await enqueue(moderate_post_background, str(post.id))
 
     # Trigger Analytics
     AnalyticsPublisher.publish_event(

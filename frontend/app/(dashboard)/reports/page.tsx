@@ -1,18 +1,15 @@
 "use client";
 
 import React from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { ReportsCenter } from "@/features/platform/module-screens";
+import { useRouter } from "next/navigation";
 
+// Reports are exported from the Analytics page (CSV snapshot built from live data).
 export default function ReportsPage() {
-  const pathname = usePathname();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (pathname !== "/analytics") {
-      router.replace("/analytics?tab=reports");
-    }
-  }, [pathname, router]);
+    router.replace("/analytics");
+  }, [router]);
 
-  return <ReportsCenter />;
+  return null;
 }

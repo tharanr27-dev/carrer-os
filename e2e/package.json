@@ -1,0 +1,12 @@
+{
+  "name": "careeros-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "student": "node student.e2e.mjs",
+    "roles": "node roles.e2e.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.50.0"
+  }
+}

@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -33,9 +35,19 @@ import { AnimatePresence, motion } from "framer-motion";
 
 export function TopNav() {
   const pathname = usePathname();
-  const { user, logout, switchRole } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
-  const { notifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
+  const { notifications, markAsRead, markAllAsRead, clearAll, syncAnnouncements } = useNotificationStore();
+
+  // Platform announcements published by admins (GET /admin/announcements/active).
+  const announcements = useQuery({
+    queryKey: ["announcements"],
+    queryFn: api.admin.activeAnnouncements,
+    refetchInterval: 60_000,
+  });
+  React.useEffect(() => {
+    if (announcements.data) syncAnnouncements(announcements.data);
+  }, [announcements.data, syncAnnouncements]);
 
   const [isNotifOpen, setIsNotifOpen] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
@@ -87,10 +99,6 @@ export function TopNav() {
     { label: "Open Global Search", category: "System", icon: Search, action: () => (window.location.href = "/global-search") },
     { label: "Open Notification Center", category: "System", icon: Bell, action: () => (window.location.href = "/notification-center") },
     { label: "Open Reports", category: "System", icon: FileText, action: () => (window.location.href = "/reports") },
-    { label: "Switch to Student Role", category: "Developer Tools", icon: User, action: () => { switchRole("student"); window.location.href = "/student"; } },
-    { label: "Switch to Recruiter Role", category: "Developer Tools", icon: User, action: () => { switchRole("recruiter"); window.location.href = "/recruiter"; } },
-    { label: "Switch to Placement Officer", category: "Developer Tools", icon: User, action: () => { switchRole("officer"); window.location.href = "/officer"; } },
-    { label: "Switch to Admin Role", category: "Developer Tools", icon: User, action: () => { switchRole("admin"); window.location.href = "/admin"; } },
     { label: "Toggle Theme (Dark / Light)", category: "System", icon: Sun, action: () => toggleTheme() },
     { label: "Sign Out", category: "System", icon: LogOut, action: () => { logout(); window.location.href = "/login"; } },
   ];

@@ -1,6 +1,7 @@
 import uuid
 from typing import List
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.community.models import Comment
@@ -16,6 +17,9 @@ class CommentService:
     async def create_comment(
         self, user_id: uuid.UUID, post_id: uuid.UUID, comment_in: CommentCreate
     ) -> Comment:
+        post = await self.repo.get_post_by_id(post_id)
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found.")
         comment = Comment(
             post_id=post_id,
             user_id=user_id,
@@ -24,10 +28,8 @@ class CommentService:
         )
 
         # Update post comment count
-        post = await self.repo.get_post_by_id(post_id)
-        if post:
-            post.comments_count += 1
-            await self.repo.update_post(post)
+        post.comments_count += 1
+        await self.repo.update_post(post)
 
         return await self.repo.create_comment(comment)
 

@@ -31,6 +31,9 @@ class ApplicationService:
             return await self.repo.update_application(app)
         return None
 
+    async def get_my_applications(self, candidate_id: uuid.UUID) -> list:
+        return await self.repo.get_applications_by_candidate(candidate_id)
+
     async def get_job_applications(
         self, job_id: uuid.UUID, status: Optional[str] = None
     ) -> List[Application]:

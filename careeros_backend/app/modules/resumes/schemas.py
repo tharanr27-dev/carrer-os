@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import UUID4, BaseModel, Field
@@ -8,6 +9,16 @@ class ResumeUploadResponse(BaseModel):
     file_name: str
     status: str
     message: str
+
+
+class ResumeSummaryResponse(BaseModel):
+    id: UUID4
+    file_name: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class ResumeAnalysisRequest(BaseModel):

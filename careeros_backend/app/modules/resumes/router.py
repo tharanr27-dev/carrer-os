@@ -8,12 +8,31 @@ from app.core.responses import APIResponse, success_response
 from app.db.session import get_db
 from app.infrastructure.storage.s3_client import s3_client
 from app.modules.auth.models import User
-from app.modules.resumes.schemas import ResumeAnalysisResponse, ResumeUploadResponse
+from app.modules.resumes.schemas import (
+    ResumeAnalysisResponse,
+    ResumeSummaryResponse,
+    ResumeUploadResponse,
+)
 from app.modules.resumes.service import ResumeService
 
 router = APIRouter()
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+@router.get("", response_model=APIResponse[list[ResumeSummaryResponse]])
+async def list_my_resumes(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The current user's uploaded resumes, newest first."""
+    service = ResumeService(db)
+    resumes = await service.repository.list_resumes_for_user(current_user.id)
+    req_id = getattr(request.state, "request_id", None)
+    return success_response(
+        data=[ResumeSummaryResponse.model_validate(r) for r in resumes], request_id=req_id
+    )
 
 
 @router.post("/upload", response_model=APIResponse[ResumeUploadResponse], status_code=202)

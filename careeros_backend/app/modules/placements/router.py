@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import get_current_user
+from app.core.tasks import enqueue
 from app.modules.auth.models import User
 from app.modules.placements.dependencies import (
     get_application_service,
@@ -60,6 +61,23 @@ async def list_college_drives(
     return await drive_service.get_college_drives(college_id)
 
 
+@router.get("/drives/available", response_model=List[PlacementDriveResponse])
+async def list_available_drives(
+    current_user: User = Depends(get_current_user),
+    drive_service: PlacementDriveService = Depends(get_placement_drive_service),
+):
+    """Student-facing: upcoming/ongoing drives that are open for registration."""
+    return await drive_service.get_available_drives()
+
+
+@router.get("/registrations/mine", response_model=List[DriveRegistrationResponse])
+async def list_my_registrations(
+    current_user: User = Depends(get_current_user),
+    application_service: ApplicationService = Depends(get_application_service),
+):
+    return await application_service.get_student_registrations(current_user.id)
+
+
 @router.get("/drives/{drive_id}", response_model=PlacementDriveResponse)
 async def get_drive(
     drive_id: UUID,
@@ -83,10 +101,7 @@ async def trigger_eligibility_calculation(
     if not drive or drive.college_id != college_id:
         raise HTTPException(status_code=404, detail="Drive not found.")
 
-    try:
-        calculate_drive_eligibility_background.delay(str(drive_id))
-    except Exception:
-        pass
+    await enqueue(calculate_drive_eligibility_background, str(drive_id))
     return {"status": "accepted", "message": "Eligibility calculation started in background."}
 
 
@@ -124,6 +139,9 @@ async def update_registration_status(
     college_id: UUID = Depends(verify_placement_officer_access),
     application_service: ApplicationService = Depends(get_application_service),
 ):
+    owner = await application_service.get_registration_college_id(registration_id)
+    if owner is not None and owner != college_id:
+        raise HTTPException(status_code=404, detail="Registration not found.")
     reg = await application_service.update_registration_status(registration_id, update_in)
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found.")
@@ -142,6 +160,9 @@ async def release_offer(
     college_id: UUID = Depends(verify_placement_officer_access),
     application_service: ApplicationService = Depends(get_application_service),
 ):
+    owner = await application_service.get_registration_college_id(registration_id)
+    if owner != college_id:
+        raise HTTPException(status_code=404, detail="Registration not found.")
     return await application_service.add_offer_letter(registration_id, offer_in)
 
 
@@ -156,8 +177,5 @@ async def trigger_student_ranking(
     if not drive or drive.college_id != college_id:
         raise HTTPException(status_code=404, detail="Drive not found.")
 
-    try:
-        rank_students_for_drive_background.delay(str(drive_id))
-    except Exception:
-        pass
+    await enqueue(rank_students_for_drive_background, str(drive_id))
     return {"status": "accepted", "message": "Student ranking started in background."}

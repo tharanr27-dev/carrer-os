@@ -22,7 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, switchRole, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
 
@@ -102,42 +102,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      {/* Role Switcher Widget (For testing RBAC in production demo) */}
-      <div className="border-t border-border pt-4 mt-4 space-y-2">
-        {!isCollapsed && (
-          <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-            Test Roles (RBAC)
-          </span>
-        )}
-        <div className={cn("flex gap-1", isCollapsed ? "flex-col" : "flex-row flex-wrap")}>
-          {(["student", "recruiter", "officer", "admin"] as UserRole[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => {
-                switchRole(r);
-                // Redirect user to their respective dashboard
-                const map = {
-                  student: "/student",
-                  recruiter: "/recruiter",
-                  officer: "/officer",
-                  admin: "/admin",
-                };
-                window.location.href = map[r];
-              }}
-              title={`Switch to ${r}`}
-              className={cn(
-                "px-2 py-1 text-[10px] font-medium rounded-sm border cursor-pointer capitalize transition-all",
-                user.role === r
-                  ? "bg-primary text-white border-primary"
-                  : "border-muted text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              {isCollapsed ? r.substring(0, 2) : r}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* User Section */}
       <div className="border-t border-border pt-4 mt-4 flex items-center justify-between">

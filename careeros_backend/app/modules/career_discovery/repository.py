@@ -18,7 +18,9 @@ class DiscoveryRepository:
         self.session = session
 
     async def get_templates(self):
-        result = await self.session.execute(select(AssessmentTemplate))
+        result = await self.session.execute(
+            select(AssessmentTemplate).options(selectinload(AssessmentTemplate.questions))
+        )
         return result.scalars().all()
 
     async def create_user_assessment(self, assessment: UserAssessment) -> UserAssessment:
@@ -58,6 +60,15 @@ class DiscoveryRepository:
             select(CareerReport)
             .options(selectinload(CareerReport.matches))
             .where(CareerReport.id == report_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
+    async def get_report_by_assessment_id(self, assessment_id: uuid.UUID) -> CareerReport | None:
+        stmt = (
+            select(CareerReport)
+            .options(selectinload(CareerReport.matches))
+            .where(CareerReport.assessment_id == assessment_id)
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()

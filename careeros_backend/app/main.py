@@ -46,6 +46,12 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# BACKEND_CORS_ORIGINS is a comma-separated list. A wildcard cannot be combined with credentials,
+# so "*" (the default) falls back to the local dev origins.
+CORS_ORIGINS = [
+    o.strip() for o in settings.BACKEND_CORS_ORIGINS.split(",") if o.strip() and o.strip() != "*"
+] or ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"]
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
@@ -66,16 +72,14 @@ app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 # 2. Rate limiter – inside CORS so CORS headers always make it to the response
-app.add_middleware(RateLimitMiddleware, max_requests=100, window_seconds=60)
+app.add_middleware(
+    RateLimitMiddleware, max_requests=settings.RATE_LIMIT_PER_MINUTE, window_seconds=60
+)
 # 3. CORS outermost – wildcard "*" + allow_credentials=True is rejected by
 #    browsers; use explicit origins instead.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

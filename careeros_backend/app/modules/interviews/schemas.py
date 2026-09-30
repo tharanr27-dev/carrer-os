@@ -20,6 +20,18 @@ class SessionResponse(BaseModel):
         from_attributes = True
 
 
+class InterviewReportResponse(BaseModel):
+    session_id: UUID4
+    overall_score: float
+    technical_score: float
+    communication_score: float
+    detailed_analysis: Optional[Dict[str, Any]] = None
+    recommended_learning: Optional[List[str]] = None
+
+    class Config:
+        from_attributes = True
+
+
 class SocketEvent(BaseModel):
     event_type: str  # e.g., ANSWER_SUBMITTED, FINISH_INTERVIEW
     payload: Dict[str, Any]

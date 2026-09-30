@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.tasks import spawn
 from app.modules.audit.service import AuditService
 from app.modules.communication.evaluation_engine import CommunicationEvaluationEngine
 from app.modules.communication.models import (
@@ -60,7 +61,7 @@ class CommunicationService:
             await manager.send_json({"event_type": "ANALYZING"}, session_id)
 
             # Offload linguistic analysis to background
-            background_tasks.add_task(self._async_analyze_message, session_id, message.id, text)
+            spawn(self._async_analyze_message(session_id, message.id, text))
 
         elif event_type == "FINISH":
             db_session = await self.repository.get_session(session_id)
@@ -69,7 +70,7 @@ class CommunicationService:
             await self.session.commit()
 
             # Offload Final Report
-            background_tasks.add_task(self._async_generate_report, session_id)
+            spawn(self._async_generate_report(session_id))
             await manager.send_json({"event_type": "SESSION_COMPLETED"}, session_id)
 
     async def _async_analyze_message(self, session_id: uuid.UUID, message_id: uuid.UUID, text: str):

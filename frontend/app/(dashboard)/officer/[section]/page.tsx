@@ -1,5 +1,7 @@
-import { PortalDashboard } from "@/features/platform/module-screens";
+"use client";
 
-export default function OfficerSectionPage() {
-  return <PortalDashboard type="officer" />;
+import { OfficerPortal } from "@/features/officer/officer-portal";
+
+export default function OfficerPortalSectionPage() {
+  return <OfficerPortal />;
 }

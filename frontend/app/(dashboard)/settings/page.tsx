@@ -23,6 +23,8 @@ import {
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { errorMessage } from "@/lib/api";
+import { ErrorBanner } from "@/components/ui/feedback";
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuthStore();
@@ -30,32 +32,18 @@ export default function SettingsPage() {
 
   const [activeTab, setActiveTab] = React.useState("profile");
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
-  const [profileForm, setProfileForm] = React.useState({
-    name: "",
-    email: "",
-    phone: "+1 (555) 382-9020",
-  });
+  const [profileForm, setProfileForm] = React.useState({ name: "", email: "" });
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   // Notifications state
   const [notifJobs, setNotifJobs] = React.useState(true);
   const [notifInterviews, setNotifInterviews] = React.useState(true);
   const [notifLearning, setNotifLearning] = React.useState(false);
 
-  // Active Sessions Mock Data
-  const [sessions, setSessions] = React.useState([
-    { id: "sess-1", device: "Chrome on Windows 11 (This Device)", location: "San Francisco, CA", active: "Active Now", current: true },
-    { id: "sess-2", device: "Safari on iPhone 15 Pro", location: "San Jose, CA", active: "2 hours ago", current: false },
-    { id: "sess-3", device: "Microsoft Edge on Windows Server", location: "Seattle, WA", active: "3 days ago", current: false },
-  ]);
-
   const triggerSaveAlert = (message: string) => {
     setSuccessMsg(message);
     setTimeout(() => setSuccessMsg(null), 3000);
-  };
-
-  const terminateSession = (id: string) => {
-    setSessions(sessions.filter((s) => s.id !== id));
-    triggerSaveAlert("Session terminated successfully.");
   };
 
   React.useEffect(() => {
@@ -69,14 +57,20 @@ export default function SettingsPage() {
   }, [user]);
 
   const handleProfileSave = async () => {
+    const name = profileForm.name.trim();
+    if (!name) {
+      setSaveError("Name is required.");
+      return;
+    }
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      await updateUser({
-        name: profileForm.name.trim(),
-        email: profileForm.email.trim(),
-      });
-      triggerSaveAlert("Profile contact information updated.");
-    } catch {
-      triggerSaveAlert("Unable to sync profile with backend. Please try again.");
+      await updateUser({ name });
+      triggerSaveAlert("Profile updated.");
+    } catch (error) {
+      setSaveError(errorMessage(error, "Unable to save your profile. Please try again."));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -105,6 +99,11 @@ export default function SettingsPage() {
           Configure security credentials, notification pathways, interface languages, and visual settings.
         </p>
       </div>
+
+      <p className="text-[11px] text-muted-foreground max-w-4xl">
+        Saved to your account: profile name. Theme is stored on this device. Preferences without a backend endpoint
+        (notifications, privacy, password, language, community) are shown disabled.
+      </p>
 
       {successMsg && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center gap-2 max-w-4xl">
@@ -149,6 +148,7 @@ export default function SettingsPage() {
                 <CardDescription className="text-xs">Update your primary registration contact fields.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 text-xs">
+                <ErrorBanner error={saveError} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Full Name</label>
@@ -160,24 +160,12 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Email Address</label>
-                    <Input
-                      type="email"
-                      value={profileForm.email}
-                      onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Telephone Contact</label>
-                    <Input
-                      type="tel"
-                      value={profileForm.phone}
-                      onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))}
-                    />
+                    <Input type="email" value={profileForm.email} disabled className="opacity-60" />
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="justify-end border-t border-border pt-4">
-                <Button onClick={handleProfileSave} className="cursor-pointer">
+                <Button onClick={handleProfileSave} isLoading={isSaving} className="cursor-pointer">
                   Save Profile
                 </Button>
               </CardFooter>
@@ -210,7 +198,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter className="justify-end border-t border-border pt-4">
-                <Button onClick={() => triggerSaveAlert("Account specifications updated.")} className="cursor-pointer">
+                <Button disabled title="Not available yet: the backend has no endpoint for this setting" className="cursor-pointer">
                   Save Changes
                 </Button>
               </CardFooter>
@@ -272,7 +260,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter className="justify-end border-t border-border pt-4">
-                <Button onClick={() => triggerSaveAlert("Notification options updated successfully.")} className="cursor-pointer">
+                <Button disabled title="Not available yet: the backend has no endpoint for this setting" className="cursor-pointer">
                   Save Preferences
                 </Button>
               </CardFooter>
@@ -308,7 +296,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter className="justify-end border-t border-border pt-4">
-                <Button onClick={() => triggerSaveAlert("Privacy settings updated.")} className="cursor-pointer">
+                <Button disabled title="Not available yet: the backend has no endpoint for this setting" className="cursor-pointer">
                   Save Preferences
                 </Button>
               </CardFooter>
@@ -335,7 +323,7 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="justify-end border-t border-border pt-4">
-                  <Button onClick={() => triggerSaveAlert("Password changed successfully.")} className="cursor-pointer">
+                  <Button disabled title="Not available yet: the backend has no endpoint for this setting" className="cursor-pointer">
                     Update Password
                   </Button>
                 </CardFooter>
@@ -349,22 +337,12 @@ export default function SettingsPage() {
                   <CardDescription className="text-xs">Logged-in devices currently accessing CareerOS.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-xs text-left">
-                  {sessions.map((sess) => (
-                    <div key={sess.id} className="p-3.5 border border-muted bg-muted/30 rounded-xl flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <p className="font-semibold text-foreground">{sess.device}</p>
-                        <p className="text-[10px] text-muted-foreground">{sess.location} • {sess.active}</p>
-                      </div>
-                      {!sess.current && (
-                        <button
-                          onClick={() => terminateSession(sess.id)}
-                          className="text-[10px] text-destructive hover:underline cursor-pointer font-semibold"
-                        >
-                          Revoke
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  <div className="p-3.5 border border-muted bg-muted/30 rounded-xl">
+                    <p className="font-semibold text-foreground">This device (current session)</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Signed in as {user.email}. Viewing and revoking other devices needs backend session endpoints.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -421,7 +399,7 @@ export default function SettingsPage() {
                 </select>
               </CardContent>
               <CardFooter className="justify-end border-t border-border pt-4">
-                <Button onClick={() => triggerSaveAlert("Language preferences updated.")} className="cursor-pointer">
+                <Button disabled title="Not available yet: the backend has no endpoint for this setting" className="cursor-pointer">
                   Save Language
                 </Button>
               </CardFooter>
@@ -449,7 +427,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter className="justify-end border-t border-border pt-4">
-                <Button onClick={() => triggerSaveAlert("Community options updated.")} className="cursor-pointer">
+                <Button disabled title="Not available yet: the backend has no endpoint for this setting" className="cursor-pointer">
                   Save Settings
                 </Button>
               </CardFooter>

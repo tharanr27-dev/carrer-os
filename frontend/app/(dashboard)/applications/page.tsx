@@ -2,9 +2,9 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ApplicationTracker } from "@/features/platform/module-screens";
+import { ApplicationTracker } from "@/features/student/jobs";
 
-export default function ApplicationsPage() {
+export default function Page() {
   const pathname = usePathname();
   const router = useRouter();
 

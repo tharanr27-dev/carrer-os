@@ -48,6 +48,12 @@ class InterviewRepository:
         self.session.add(feedback)
         await self.session.commit()
 
+    async def get_report_for_session(self, session_id: uuid.UUID) -> InterviewReport | None:
+        result = await self.session.execute(
+            select(InterviewReport).where(InterviewReport.session_id == session_id)
+        )
+        return result.scalars().first()
+
     async def save_report(self, report: InterviewReport):
         self.session.add(report)
         await self.session.commit()

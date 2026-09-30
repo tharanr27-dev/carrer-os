@@ -44,6 +44,12 @@ class CommunicationRepository:
         await self.session.refresh(analysis)
         return analysis
 
+    async def get_report_for_session(self, session_id: uuid.UUID) -> CommunicationReport | None:
+        result = await self.session.execute(
+            select(CommunicationReport).where(CommunicationReport.session_id == session_id)
+        )
+        return result.scalars().first()
+
     async def save_report(self, report: CommunicationReport) -> CommunicationReport:
         self.session.add(report)
         await self.session.commit()

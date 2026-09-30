@@ -331,6 +331,14 @@ class RoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AdminUserResponse(BaseModel):
+    id: UUID
+    email: str
+    status: str
+    roles: List[str] = []
+    created_at: datetime
+
+
 class UserStatusUpdateRequest(BaseModel):
     status: str
 

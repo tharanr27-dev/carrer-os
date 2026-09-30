@@ -1,14 +1,23 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_user_from_token
 from app.core.responses import APIResponse, success_response
 from app.db.session import get_db
 from app.modules.auth.models import User
 from app.modules.communication.schemas import (
+    CommunicationReportResponse,
     CommunicationSessionCreate,
     CommunicationSessionResponse,
 )
@@ -34,6 +43,29 @@ async def init_session(
     )
 
 
+@router.get(
+    "/sessions/{session_id}/report", response_model=APIResponse[CommunicationReportResponse]
+)
+async def get_session_report(
+    session_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Final report for a finished session. 404 while it is still being generated."""
+    service = CommunicationService(db)
+    session = await service.repository.get_session(session_id)
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    report = await service.repository.get_report_for_session(session_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not ready yet")
+    req_id = getattr(request.state, "request_id", None)
+    return success_response(
+        data=CommunicationReportResponse.model_validate(report), request_id=req_id
+    )
+
+
 @router.websocket("/ws/{session_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -41,9 +73,17 @@ async def websocket_endpoint(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    # In production, authentication must be implemented for WebSockets via tokens.
-    await manager.connect(session_id, websocket)
+    # Browsers cannot set headers on WebSockets, so the access token travels as ?token=...
+    user = await get_user_from_token(websocket.query_params.get("token"), db)
+    if user is None:
+        await websocket.close(code=4401)
+        return
     service = CommunicationService(db)
+    owned = await service.repository.get_session(session_id)
+    if owned is None or owned.user_id != user.id:
+        await websocket.close(code=4403)
+        return
+    await manager.connect(session_id, websocket)
 
     try:
         while True:

@@ -26,6 +26,12 @@ class ResumeRepository:
         result = await self.session.execute(select(Resume).where(Resume.id == resume_id))
         return result.scalars().first()
 
+    async def list_resumes_for_user(self, user_id: uuid.UUID) -> list[Resume]:
+        result = await self.session.execute(
+            select(Resume).where(Resume.user_id == user_id).order_by(Resume.created_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def save_metadata(self, metadata: ResumeMetadata):
         self.session.add(metadata)
         await self.session.commit()

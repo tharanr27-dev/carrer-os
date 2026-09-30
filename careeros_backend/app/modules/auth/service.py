@@ -1,6 +1,10 @@
+import uuid
+
 from fastapi import HTTPException, status
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -31,6 +35,30 @@ class AuthService:
         refresh_token = create_refresh_token(subject=user.id)
 
         return Token(access_token=access_token, refresh_token=refresh_token)
+
+    async def refresh(self, refresh_token: str) -> Token:
+        invalid = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        try:
+            payload = jwt.decode(
+                refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            if payload.get("type") != "refresh":
+                raise invalid
+            user_id = uuid.UUID(payload.get("sub", ""))
+        except (JWTError, ValueError):
+            raise invalid
+
+        user = await self.repository.get_user_by_id(user_id)
+        if not user or not user.is_active:
+            raise invalid
+        return Token(
+            access_token=create_access_token(subject=user.id),
+            refresh_token=create_refresh_token(subject=user.id),
+        )
 
     async def register(self, user_in: UserCreate) -> User:
         existing_user = await self.repository.get_user_by_email(user_in.email)

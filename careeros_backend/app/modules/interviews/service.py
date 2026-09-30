@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.tasks import spawn
 from app.modules.audit.service import AuditService
 from app.modules.interviews.evaluation_engine import InterviewEvaluationEngine
 from app.modules.interviews.models import (
@@ -69,9 +70,7 @@ class InterviewService:
             await manager.send_json({"event_type": "EVALUATING"}, session_id)
 
             # Offload heavy AI processing to background
-            background_tasks.add_task(
-                self._async_evaluate_and_continue, session_id, answer.id, text
-            )
+            spawn(self._async_evaluate_and_continue(session_id, answer.id, text))
 
         elif event_type == "FINISH":
             db_session = await self.repository.get_session(session_id)
@@ -80,7 +79,7 @@ class InterviewService:
             await self.session.commit()
 
             # Offload Final Report Generation
-            background_tasks.add_task(self._async_generate_report, session_id)
+            spawn(self._async_generate_report(session_id))
             await manager.send_json({"event_type": "INTERVIEW_COMPLETED"}, session_id)
 
     async def _async_evaluate_and_continue(

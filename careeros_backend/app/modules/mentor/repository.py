@@ -29,6 +29,25 @@ class MentorRepository:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def get_latest_session(self, user_id: uuid.UUID) -> MentorSession | None:
+        stmt = (
+            select(MentorSession)
+            .options(selectinload(MentorSession.messages))
+            .where(MentorSession.user_id == user_id, MentorSession.status == "ACTIVE")
+            .order_by(MentorSession.created_at.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(stmt)).scalars().first()
+
+    async def list_goals(self, user_id: uuid.UUID) -> list[CareerGoal]:
+        stmt = (
+            select(CareerGoal)
+            .options(selectinload(CareerGoal.milestones))
+            .where(CareerGoal.user_id == user_id)
+            .order_by(CareerGoal.created_at.desc())
+        )
+        return list((await self.session.execute(stmt)).scalars().all())
+
     async def append_message(
         self, session_id: uuid.UUID, role: str, content: str, tokens: dict = None
     ) -> MentorMessage:

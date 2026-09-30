@@ -1,5 +1,5 @@
-import { GlobalSearch } from "@/features/platform/module-screens";
+import { GlobalSearchView } from "@/features/platform/utility-screens";
 
 export default function GlobalSearchPage() {
-  return <GlobalSearch />;
+  return <GlobalSearchView />;
 }

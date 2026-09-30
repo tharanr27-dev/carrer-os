@@ -5,10 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
-import { useAuthStore } from "@/store/useAuthStore";
+import { HOME_PATH, useAuthStore } from "@/store/useAuthStore";
+import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { motion } from "framer-motion";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -26,6 +26,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const { register: signUp, isLoading } = useAuthStore();
   const [success, setSuccess] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const {
     register,
@@ -43,16 +44,16 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: RegisterFormValues) => {
-    try {
-      const isOk = await signUp(data.name, data.email, data.password, data.role);
-      if (isOk) {
-        setSuccess(true);
-        setTimeout(() => {
-          window.location.href = "/otp-verification";
-        }, 1500);
-      }
-    } catch (err) {
-      console.error(err);
+    setErrorMessage(null);
+    const isOk = await signUp(data.name, data.email, data.password, data.role);
+    if (isOk) {
+      setSuccess(true);
+      const { user } = useAuthStore.getState();
+      setTimeout(() => {
+        window.location.href = user ? HOME_PATH[user.role] : "/student";
+      }, 1200);
+    } else {
+      setErrorMessage(useAuthStore.getState().error ?? "Registration failed. Please try again.");
     }
   };
 
@@ -64,7 +65,7 @@ export default function RegisterPage() {
         </div>
         <h3 className="text-xl font-bold text-slate-100">Account Created</h3>
         <p className="text-xs text-muted-foreground mt-2">
-          Sending OTP code to verify your email. Redirecting...
+          Your account is ready. Taking you to your dashboard...
         </p>
       </div>
     );
@@ -76,6 +77,13 @@ export default function RegisterPage() {
       <p className="text-xs text-muted-foreground mt-1 mb-6">
         Get started with CareerOS AI today.
       </p>
+
+      {errorMessage && (
+        <div role="alert" className="mb-4 flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-lg">
+          <ShieldAlert className="h-4 w-4 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Name */}

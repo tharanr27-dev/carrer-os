@@ -2,9 +2,9 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { InterviewStudio } from "@/features/platform/module-screens";
+import { InterviewStudioView } from "@/features/student/interview";
 
-export default function InterviewsPage() {
+export default function Page() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -14,5 +14,5 @@ export default function InterviewsPage() {
     }
   }, [pathname, router]);
 
-  return <InterviewStudio />;
+  return <InterviewStudioView />;
 }
