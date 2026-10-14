@@ -517,7 +517,22 @@ function AiConfig() {
     mutationFn: (v: { module: string; version: string }) => api.admin.rollbackPrompt(v.module, v.version, v.version),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-prompt-versions"] }),
   });
-  const runTest = useMutation({ mutationFn: () => api.admin.testProvider(test) });
+  const runTest = useMutation({
+    mutationFn: async () => {
+      const res = await api.admin.testProvider(test);
+      await api.logAiUsage({
+        module: "admin_ai_test",
+        provider: test.provider_name.trim(),
+        model: test.model_name.trim(),
+        prompt_tokens: Math.max(1, Math.round((res.tokens_used || 50) * 0.4)),
+        completion_tokens: Math.max(1, Math.round((res.tokens_used || 50) * 0.6)),
+        total_tokens: res.tokens_used || 100,
+        latency_ms: res.latency_ms || 120,
+        success: res.status !== "error",
+      }).catch(() => undefined);
+      return res;
+    },
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -690,6 +705,7 @@ function Monitoring() {
   const jobs = useQuery({ queryKey: ["admin-jobs"], queryFn: () => api.admin.backgroundJobs(20) });
   const resources = useQuery({ queryKey: ["admin-resources"], queryFn: api.admin.resources });
   const maintenance = useQuery({ queryKey: ["admin-maintenance"], queryFn: api.admin.maintenanceStatus });
+  const openapi = useQuery({ queryKey: ["admin-openapi"], queryFn: api.openapi });
   const [win, setWin] = React.useState({ start_time: "", end_time: "", description: "" });
   const [validation, setValidation] = React.useState<string | null>(null);
 
@@ -768,6 +784,52 @@ function Monitoring() {
               </p>
             </div>
           ))}
+        </CardContent>
+      </Card>
+      <Card className="lg:col-span-2">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base font-bold">API Specifications &amp; OpenAPI Explorer</CardTitle>
+            <CardDescription className="text-xs">Live OpenAPI v1 documentation schema connected to backend endpoints</CardDescription>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => void openapi.refetch()} isLoading={openapi.isFetching}>
+            Refresh Spec
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {openapi.isLoading ? (
+            <LoadingBlock />
+          ) : openapi.error ? (
+            <ErrorBanner error={openapi.error} onRetry={() => void openapi.refetch()} />
+          ) : openapi.data ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-lg border border-border bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">Title</div>
+                  <div className="font-bold text-foreground truncate">{String(openapi.data.info && typeof openapi.data.info === 'object' && 'title' in openapi.data.info ? (openapi.data.info as Record<string, unknown>).title : "CareerOS API")}</div>
+                </div>
+                <div className="p-3 rounded-lg border border-border bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">OpenAPI Version</div>
+                  <div className="font-bold text-foreground">{String(openapi.data.openapi ?? "3.1.0")}</div>
+                </div>
+                <div className="p-3 rounded-lg border border-border bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">Total Endpoints</div>
+                  <div className="font-bold text-foreground">{Object.keys((openapi.data.paths as Record<string, unknown>) ?? {}).length} Paths</div>
+                </div>
+                <div className="p-3 rounded-lg border border-border bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">Docs Links</div>
+                  <div className="flex gap-2 font-semibold text-primary">
+                    <a href="/docs" target="_blank" rel="noreferrer" className="hover:underline">Swagger</a>
+                    <span>•</span>
+                    <a href="/redoc" target="_blank" rel="noreferrer" className="hover:underline">Redoc</a>
+                  </div>
+                </div>
+              </div>
+              <JsonView value={openapi.data} />
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No schema loaded.</p>
+          )}
         </CardContent>
       </Card>
     </div>

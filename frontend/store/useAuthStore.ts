@@ -39,6 +39,7 @@ interface AuthState {
   register: (name: string, email: string, password: string, role: Exclude<UserRole, "admin">) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  refreshSession: () => Promise<boolean>;
   updateUser: (updated: { name?: string; title?: string; avatar?: string }) => Promise<void>;
 }
 
@@ -175,6 +176,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: await loadUser() });
     } catch (error) {
       set({ error: errorMessage(error) });
+    }
+  },
+
+  refreshSession: async () => {
+    const tokens = getStoredTokens();
+    if (!tokens?.refreshToken) return false;
+    try {
+      const fresh = await api.refreshToken(tokens.refreshToken);
+      setStoredTokens({ accessToken: fresh.access_token, refreshToken: fresh.refresh_token });
+      return true;
+    } catch {
+      return false;
     }
   },
 

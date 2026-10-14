@@ -285,6 +285,39 @@ export interface StudentDashboard {
   trends: { ats_score_delta: number; interview_score_delta: number };
 }
 
+export interface AIUsageAnalyticsCreate {
+  module: string;
+  provider?: string | null;
+  model?: string | null;
+  prompt_version?: string | null;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  estimated_cost_usd?: number;
+  latency_ms?: number | null;
+  success?: boolean;
+  error_message?: string | null;
+  retry_count?: number;
+}
+
+export interface AIUsageAnalyticsResponse {
+  id: string;
+  user_id?: string | null;
+  module: string;
+  provider?: string | null;
+  model?: string | null;
+  prompt_version?: string | null;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+  latency_ms?: number | null;
+  success: boolean;
+  error_message?: string | null;
+  retry_count: number;
+  created_at: string;
+}
+
 // discovery
 export interface AssessmentQuestion {
   id: string;
@@ -733,6 +766,8 @@ export const api = {
     request<AuthTokenResponse>("/auth/login", { method: "POST", body: { email, password }, auth: false }),
   register: (email: string, password: string) =>
     request<AuthUserResponse>("/auth/register", { method: "POST", body: { email, password }, auth: false }),
+  refreshToken: (refreshToken: string) =>
+    request<AuthTokenResponse>("/auth/refresh", { method: "POST", body: { refresh_token: refreshToken }, auth: false }),
   me: () => request<MeResponse>("/auth/me"),
 
   // Users
@@ -744,6 +779,8 @@ export const api = {
   studentDashboard: () => request<StudentDashboard>("/analytics/dashboard/student"),
   logEvent: (event: { event_type: string; module: string; entity_id?: string; payload?: Record<string, unknown> }) =>
     request<{ status: string }>("/analytics/events", { method: "POST", body: event }),
+  logAiUsage: (usage: AIUsageAnalyticsCreate) =>
+    request<AIUsageAnalyticsResponse>("/analytics/ai-usage", { method: "POST", body: usage }),
 
   // Career discovery
   discoveryTemplates: () => data<AssessmentTemplate[]>("/discovery/templates"),
@@ -930,7 +967,9 @@ export const api = {
       }),
     testProvider: (t: { provider_name: string; model_name: string; prompt_text: string }) =>
       request<AiProviderTestResult>("/admin/ai/testing/test", { method: "POST", body: t }),
+    openapi: () => request<Record<string, unknown>>("/openapi.json", { auth: false }),
   },
+  openapi: () => request<Record<string, unknown>>("/openapi.json", { auth: false }),
 };
 
 // ─── WebSockets (interviews / communication) ─────────────────────────────────
