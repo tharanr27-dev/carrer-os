@@ -5,6 +5,9 @@ from app.core.config import settings
 connect_args = {}
 if "sqlite" in settings.sqlalchemy_database_uri:
     connect_args["check_same_thread"] = False
+else:
+    # Disable prepared statement caching for Supabase Session/Transaction Pooler (PgBouncer/Supavisor)
+    connect_args["statement_cache_size"] = 0
 
 engine = create_async_engine(settings.sqlalchemy_database_uri, echo=False, connect_args=connect_args)
 AsyncSessionLocal = async_sessionmaker(

@@ -6,6 +6,9 @@ Admin credentials come from SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (dev defaults
 
 import asyncio
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from sqlalchemy import select
 

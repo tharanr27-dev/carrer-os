@@ -36,7 +36,12 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_database_uri(self) -> str:
         if self.DATABASE_URL:
-            return self.DATABASE_URL
+            uri = self.DATABASE_URL.strip()
+            if uri.startswith("postgresql://"):
+                uri = "postgresql+asyncpg://" + uri[len("postgresql://"):]
+            elif uri.startswith("postgres://"):
+                uri = "postgresql+asyncpg://" + uri[len("postgres://"):]
+            return uri
         if self.ENVIRONMENT != "production" and self.POSTGRES_SERVER == "postgres":
             return "sqlite+aiosqlite:///./careeros.db"
         return (
