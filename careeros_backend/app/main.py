@@ -26,6 +26,7 @@ from app.modules.career_discovery.router import router as discovery_router
 from app.modules.communication.router import router as communication_router
 from app.modules.community.router import router as community_router
 from app.modules.interviews.router import router as interviews_router
+from app.modules.jobs.router import router as jobs_router
 from app.modules.learning.router import router as learning_router
 from app.modules.mentor.router import router as mentor_router
 from app.modules.placements.router import router as placements_router
@@ -113,6 +114,7 @@ app.include_router(
 app.include_router(
     placements_router, prefix=f"{settings.API_V1_STR}/placements", tags=["placements"]
 )
+app.include_router(jobs_router, prefix=f"{settings.API_V1_STR}/jobs", tags=["jobs"])
 app.include_router(admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
 
 

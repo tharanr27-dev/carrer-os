@@ -568,6 +568,66 @@ export interface JobApplication {
   ai_insights: Record<string, unknown> | null;
   created_at: string;
 }
+
+export interface RecommendedJobMatch {
+  score: number;
+  matched_skills: string[];
+  reason: string;
+}
+
+export interface RecommendedJobItem {
+  id: string;
+  title: string;
+  company: string;
+  company_slug: string | null;
+  company_logo: string | null;
+  location: string;
+  remote: boolean;
+  eligible_countries: string[];
+  employment_type: string | null;
+  seniority: string[];
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
+  salary_period: string | null;
+  description: string;
+  posted_at: string | null;
+  expires_at: string | null;
+  apply_url: string;
+  source: string;
+  match: RecommendedJobMatch | null;
+}
+
+export interface RecommendedJobsResponse {
+  success: boolean;
+  source: string;
+  attribution: { name: string; url: string };
+  filters: {
+    query: string | null;
+    country: string | null;
+    page: number;
+    seniority: string | null;
+    employment_type: string | null;
+    worldwide: boolean | null;
+    exclude_worldwide: boolean | null;
+  };
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  match_method: string | null;
+  jobs: RecommendedJobItem[];
+}
+
+export interface RecommendedJobsParams {
+  q?: string;
+  country?: string;
+  page?: number;
+  employment_type?: string;
+  seniority?: string;
+  worldwide?: boolean;
+  exclude_worldwide?: boolean;
+}
 export interface MyApplication {
   id: string;
   job_id: string;
@@ -871,6 +931,8 @@ export const api = {
   createJob: (job: JobCreate) => request<Job>("/recruiters/jobs", { method: "POST", body: job }),
   companyJobs: () => request<Job[]>("/recruiters/jobs"),
   openJobs: () => request<OpenJob[]>("/recruiters/jobs/open"),
+  recommendedJobs: (params?: RecommendedJobsParams) =>
+    request<RecommendedJobsResponse>("/jobs/recommended", { query: { ...params } }),
   applyToJob: (jobId: string) => request<JobApplication>(`/recruiters/jobs/${jobId}/apply`, { method: "POST" }),
   myApplications: () => request<MyApplication[]>("/recruiters/applications/mine"),
   jobApplications: (jobId: string) => request<JobApplication[]>(`/recruiters/jobs/${jobId}/applications`),
