@@ -33,6 +33,7 @@ from app.modules.placements.router import router as placements_router
 from app.modules.recommendations.router import router as recommendations_router
 from app.modules.recruiters.router import router as recruiters_router
 from app.modules.resumes.router import router as resumes_router
+from app.modules.training.router import router as training_router
 from app.modules.users.router import router as users_router
 
 from contextlib import asynccontextmanager
@@ -115,6 +116,9 @@ app.include_router(
     placements_router, prefix=f"{settings.API_V1_STR}/placements", tags=["placements"]
 )
 app.include_router(jobs_router, prefix=f"{settings.API_V1_STR}/jobs", tags=["jobs"])
+app.include_router(
+    training_router, prefix=f"{settings.API_V1_STR}/training", tags=["training"]
+)
 app.include_router(admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
 
 

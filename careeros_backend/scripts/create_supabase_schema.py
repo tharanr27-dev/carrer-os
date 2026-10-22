@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import settings
 from app.db.base import Base
 
-# Ensure all 15 domain model modules are imported so Base.metadata knows about all tables
+# Ensure all 16 domain model modules are imported so Base.metadata knows about all tables
 import app.modules.users.models
 import app.modules.auth.models
 import app.modules.career_discovery.models
@@ -28,6 +28,7 @@ import app.modules.recruiters.models
 import app.modules.placements.models
 import app.modules.admin.models
 import app.modules.audit.models
+import app.modules.training.models
 
 
 def sanitize_uri(uri: str) -> str:
