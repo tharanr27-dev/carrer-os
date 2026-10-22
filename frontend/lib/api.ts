@@ -628,6 +628,226 @@ export interface RecommendedJobsParams {
   worldwide?: boolean;
   exclude_worldwide?: boolean;
 }
+// â”€â”€â”€ Interview Preparation (training) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+export type TrainingRound = "aptitude" | "technical" | "coding" | "communication" | "hr" | "resume" | "managerial";
+export type TrainingMode = "practice" | "exam" | "mock";
+
+export interface TrainingMeta {
+  rounds: {
+    key: TrainingRound;
+    label: string;
+    stage: number;
+    groups: { name: string; topics: { slug: string; label: string; questions: number }[] }[];
+  }[];
+  target_roles: string[];
+  levels: string[];
+  difficulties: string[];
+  ai_available: boolean;
+  ai_note: string | null;
+  labels: string[];
+  disclaimer: string;
+}
+
+export interface TrainingCoding {
+  title: string;
+  input_format: string;
+  output_format: string;
+  constraints: string[];
+  examples: { input: string; output: string; note?: string }[];
+  hints: string[];
+  tests: { input: string; output: string }[];
+  time_complexity: string;
+  space_complexity: string;
+  concepts: string[];
+  language?: string;
+  schema_sql?: string;
+}
+
+export interface TrainingEvaluation {
+  method?: string;
+  disclaimer?: string;
+  criteria?: Record<string, number>;
+  strengths?: string[];
+  improvements?: string[];
+  structure_note?: string;
+  stronger_answer?: string | null;
+  fallback_reason?: string;
+  self_passed?: number;
+  self_total?: number;
+}
+
+export interface TrainingResult {
+  is_correct: boolean | null;
+  correct_index: number | null;
+  explanation: string | null;
+  model_answer: string | null;
+  score: number | null;
+  score_kind: "objective" | "ai_estimate" | "keyword_estimate" | "self_assessed" | null;
+  evaluation: TrainingEvaluation | null;
+}
+
+export interface TrainingItem {
+  id: string;
+  position: number;
+  round: TrainingRound;
+  topic: string;
+  topic_label: string;
+  difficulty: string;
+  qtype: "mcq" | "text" | "code";
+  prompt: string;
+  options: string[] | null;
+  label: string | null;
+  source: string;
+  review_status: string;
+  is_follow_up: boolean;
+  coding: TrainingCoding | null;
+  answered: boolean;
+  answer: { index?: number; text?: string } | null;
+  time_taken_sec: number | null;
+  result: TrainingResult | null;
+}
+
+export interface TrainingSummary {
+  total_questions: number;
+  answered: number;
+  skipped: number;
+  correct: number;
+  objective_total: number;
+  objective_pct: number | null;
+  estimated_pct: number | null;
+  self_assessed_pct: number | null;
+  overall_pct: number | null;
+  total_time_sec: number | null;
+  avg_time_sec: number | null;
+  by_topic: { round: TrainingRound; topic: string; label: string; attempted: number; score_pct: number }[];
+  by_round: Record<string, { label: string; attempted: number; score_pct: number | null; objective_pct: number | null; estimated_pct: number | null }>;
+  strengths: string[];
+  weak_areas: string[];
+  suggestions: TrainingAction[];
+  change_vs_previous: number | null;
+  previous_overall_pct: number | null;
+  score_notes: string;
+  readiness_note?: string;
+}
+
+export interface TrainingAction {
+  title: string;
+  reason: string;
+  action: { type: "practice" | "mock"; round?: TrainingRound; topic?: string | null; difficulty?: string | null; mode?: TrainingMode };
+  rule?: string;
+}
+
+export interface TrainingAttempt {
+  id: string;
+  mode: TrainingMode;
+  round: TrainingRound | "mock";
+  topic: string | null;
+  difficulty: string | null;
+  status: "IN_PROGRESS" | "COMPLETED";
+  config: { notices?: string[]; rounds?: string[]; role?: string; planned_count?: number } | null;
+  time_limit_sec: number | null;
+  started_at: string;
+  deadline: string | null;
+  ended_at: string | null;
+  summary: TrainingSummary | null;
+  items: TrainingItem[];
+  ai_available: boolean;
+}
+
+export interface TrainingAttemptRow {
+  id: string;
+  mode: TrainingMode;
+  round: string;
+  topic: string | null;
+  difficulty: string | null;
+  status: "IN_PROGRESS" | "COMPLETED";
+  started_at: string;
+  ended_at: string | null;
+  overall_pct: number | null;
+  planned: number | null;
+}
+
+export interface TrainingRoundProgress {
+  label: string;
+  stage: number;
+  attempted: number;
+  objective_pct: number | null;
+  estimated_pct: number | null;
+  self_assessed_pct: number | null;
+  combined_pct: number | null;
+  avg_time_sec: number | null;
+  status: "not_started" | "in_progress" | "needs_work" | "on_track" | "strong";
+  last_practised: string | null;
+}
+
+export interface TrainingProfile {
+  target_role: string | null;
+  level: "fresher" | "junior" | "mid";
+  language: "en" | "ta";
+  resume_data: {
+    projects: { title: string; description?: string | null; tech_stack?: string | null }[];
+    skills: string[];
+    degree?: string | null;
+    source: "student_edited" | "profile";
+  };
+}
+
+export interface TrainingProgress {
+  overall_pct: number | null;
+  total_scored_answers: number;
+  rounds: Record<TrainingRound, TrainingRoundProgress>;
+  current_stage: { round: string; label: string; status: string };
+  weakest_topics: { round: TrainingRound; topic: string; label: string; attempted: number; score_pct: number }[];
+  strongest_topics: { round: TrainingRound; topic: string; label: string; attempted: number; score_pct: number }[];
+  completion_rate: number | null;
+  attempts_total: number;
+  attempts_completed: number;
+  trend: { attempt_id: string; date: string | null; round: string; topic: string | null; overall_pct: number }[];
+  improvement_pct_points: number | null;
+  recent_attempts: TrainingAttemptRow[];
+  recommendations: TrainingAction[];
+  scoring_rules: string[];
+  resume_attempt: TrainingAttemptRow | null;
+  profile: TrainingProfile;
+}
+
+export interface TrainingAttemptCreate {
+  mode: TrainingMode;
+  round?: TrainingRound;
+  topic?: string | null;
+  difficulty?: string | null;
+  count?: number;
+  time_limit_sec?: number | null;
+  adaptive?: boolean;
+  generate?: boolean;
+  qtype?: "mcq" | "text";
+  mock?: {
+    role?: string | null;
+    level: string;
+    rounds: TrainingRound[];
+    duration_min: number;
+    difficulty?: string | null;
+    language: "en" | "ta";
+  };
+}
+
+export interface TrainingAnswerBody {
+  item_id: string;
+  index?: number;
+  text?: string;
+  self_passed?: number;
+  self_total?: number;
+  time_taken_sec?: number;
+}
+
+export interface TrainingAnswerResponse {
+  saved: boolean;
+  item_id?: string;
+  item?: TrainingItem;
+  follow_up?: TrainingItem | null;
+}
+
 export interface MyApplication {
   id: string;
   job_id: string;
@@ -933,6 +1153,20 @@ export const api = {
   openJobs: () => request<OpenJob[]>("/recruiters/jobs/open"),
   recommendedJobs: (params?: RecommendedJobsParams) =>
     request<RecommendedJobsResponse>("/jobs/recommended", { query: { ...params } }),
+  trainingMeta: () => data<TrainingMeta>("/training/meta"),
+  trainingProfile: () => data<TrainingProfile>("/training/profile"),
+  updateTrainingProfile: (body: { target_role?: string | null; level?: string; language?: string; resume_data?: { projects: { title: string; description?: string | null; tech_stack?: string | null }[]; skills: string[]; degree?: string | null }; reset_resume_data?: boolean }) =>
+    data<TrainingProfile>("/training/profile", { method: "PUT", body }),
+  trainingProgress: () => data<TrainingProgress>("/training/progress"),
+  trainingStart: (body: TrainingAttemptCreate) => data<TrainingAttempt>("/training/attempts", { method: "POST", body }),
+  trainingAttempt: (id: string) => data<TrainingAttempt>(`/training/attempts/${id}`),
+  trainingAnswer: (id: string, body: TrainingAnswerBody) =>
+    data<TrainingAnswerResponse>(`/training/attempts/${id}/answer`, { method: "POST", body }),
+  trainingNext: (id: string, body: { generate?: boolean; count?: number; qtype?: "mcq" | "text" }) =>
+    data<{ attempt: TrainingAttempt; added: TrainingItem[]; notices: string[] }>(`/training/attempts/${id}/next`, { method: "POST", body }),
+  trainingFinish: (id: string) => data<TrainingAttempt>(`/training/attempts/${id}/finish`, { method: "POST" }),
+  trainingHistory: (page = 1, size = 10, status?: string) =>
+    data<{ page: number; size: number; total: number; items: TrainingAttemptRow[] }>("/training/attempts", { query: { page, size, status } }),
   applyToJob: (jobId: string) => request<JobApplication>(`/recruiters/jobs/${jobId}/apply`, { method: "POST" }),
   myApplications: () => request<MyApplication[]>("/recruiters/applications/mine"),
   jobApplications: (jobId: string) => request<JobApplication[]>(`/recruiters/jobs/${jobId}/applications`),

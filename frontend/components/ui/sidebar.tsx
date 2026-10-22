@@ -16,6 +16,7 @@ import {
   Sparkles,
   BarChart3,
   Rocket,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,6 +41,7 @@ export function Sidebar() {
       { href: dashboardMap[role] || "/student", label: "Dashboard", icon: LayoutDashboard },
       { href: "/workspace", label: "Workspace", icon: Rocket },
       { href: "/jobs", label: "Jobs", icon: Briefcase },
+      ...(role === "student" ? [{ href: "/interview-prep", label: "Interview Prep", icon: GraduationCap }] : []),
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/settings", label: "Settings", icon: Settings },
     ];
