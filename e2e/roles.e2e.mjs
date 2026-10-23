@@ -191,8 +191,8 @@ try {
   {
     const { page } = admin;
     await go(page, `${FRONT}/login`);
-    await page.getByPlaceholder("alex.morgan@university.edu").fill("admin@careeros.ai");
-    await page.locator('input[type="password"]').fill("AdminPass123!");
+    await page.getByPlaceholder("alex.morgan@university.edu").fill(process.env.E2E_ADMIN_EMAIL ?? "");
+    await page.locator('input[type="password"]').fill(process.env.E2E_ADMIN_PASSWORD ?? "");
     await page.getByRole("button", { name: /Sign In to CareerOS/ }).click();
     await page.waitForURL("**/admin", { timeout: 20000 }).catch(() => {});
     await page.waitForLoadState("networkidle").catch(() => {});

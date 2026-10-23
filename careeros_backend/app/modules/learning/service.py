@@ -33,8 +33,8 @@ class LearningService:
         self, user_id: uuid.UUID, request: RoadmapGenerateRequest, background_tasks: BackgroundTasks
     ) -> dict:
         """
-        Creates a stub ACTIVE roadmap record immediately, then offloads
-        the heavy AI generation to a background task so the API responds
+        Creates a GENERATING roadmap record immediately, then offloads
+        the roadmap build to a background task so the API responds
         instantly with 202 Accepted.
         """
         # Determine next version number (simple read of any existing roadmaps)
@@ -63,16 +63,26 @@ class LearningService:
             user_id, "ROADMAP_GENERATION_STARTED", "LearningRoadmap", str(roadmap.id)
         )
 
-        # Build context snapshot from across the platform modules.
-        # In a full implementation, we query resume_analyses, interview_feedbacks,
-        # communication_reports, and career_goals tables here.
+        # Real context from this student's saved data (résumé analysis, practice results, reports, goals).
+        from app.modules.recommendations.context_aggregator import ContextAggregator
+
+        real = await ContextAggregator(self.session).build_context(user_id)
+        training = real.get("training") or {}
         context = {
             "target_role": request.target_role,
             "target_company": request.target_company,
-            "resume_weaknesses": ["Docker", "Kubernetes"],  # from Phase 6
-            "interview_scores": {"technical": 72, "communication": 68},  # from Phase 8
-            "communication_scores": {"grammar": 75, "vocabulary": 80},  # from Phase 9
-            "career_goals": [],  # from Phase 7
+            "resume_weaknesses": real.get("resume_weaknesses", []),
+            "resume_suggestions": real.get("resume_suggestions", []),
+            "interview_scores": real.get("interview_scores", {}),
+            "communication_scores": real.get("communication_scores", {}),
+            "career_goals": real.get("career_goals", []),
+            # Only the summary is persisted with the roadmap (not the full attempt history).
+            "training": {
+                "total_scored_answers": training.get("total_scored_answers", 0),
+                "overall_pct": training.get("overall_pct"),
+                "weakest_topics": training.get("weakest_topics", []),
+                "strongest_topics": training.get("strongest_topics", []),
+            },
         }
 
         # Offload AI generation to background so we return 202 immediately

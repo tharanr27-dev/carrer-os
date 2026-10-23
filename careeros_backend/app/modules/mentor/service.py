@@ -3,7 +3,6 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.ai.pipeline import AIGlobalPipeline
 from app.modules.audit.service import AuditService
 from app.modules.mentor.models import CareerGoal, GoalMilestone, MentorSession
 from app.modules.mentor.repository import MentorRepository
@@ -15,7 +14,6 @@ class MentorService:
         self.session = session
         self.repository = MentorRepository(session)
         self.audit_service = AuditService(session)
-        self.ai_pipeline = AIGlobalPipeline()
 
     async def create_session(self, user_id: uuid.UUID) -> MentorSession:
         return await self.repository.create_session(user_id)
@@ -31,46 +29,55 @@ class MentorService:
         # 2. Append User Message
         await self.repository.append_message(session_id, "USER", request.content)
 
-        # 3. Build Chat History for Memory
-        chat_history = [
-            {"role": msg.role, "content": msg.content} for msg in mentor_session.messages
-        ]
+        # 3. Reply. A real conversation needs an AI provider; without one the mentor says so plainly and gives
+        #    guidance derived from the student's own saved data instead of pretending to chat.
+        content, tokens = await self._reply(user_id, mentor_session, request.content)
 
-        # 4. Context Builder (Stubbed for Phase 7, dynamic in Phase 17)
-        system_prompt = (
-            "You are a professional AI Career Mentor. Keep responses concise and actionable."
-        )
-
-        # 5. Route to AI Platform Orchestrator
-        from app.modules.ai.dependencies import get_ai_orchestrator
-
-        orchestrator = get_ai_orchestrator()
-
-        request_payload = {
-            "provider_name": "mock",
-            "model_name": "gpt-4",
-            "task": "conversational_mentor",
-            "system_prompt": system_prompt,
-            "chat_history": chat_history,
-            "new_message": request.content,
-        }
-
-        ai_response = await orchestrator.process_request("mock", request_payload)
-        # Assuming the orchestrator mock returns the message in response_text
-        content = ai_response.get("response_text", "I'm sorry, I could not process that.")
-        tokens = ai_response.get("tokens_used", 0)
-
-        # 6. Append AI Message
+        # 4. Append the reply
         ai_msg = await self.repository.append_message(
             session_id=session_id, role="AI", content=content, tokens=tokens
         )
 
-        # 7. Audit Event
+        # 5. Audit Event
         await self.audit_service.log_action(
             user_id, "MENTOR_INTERACTION", "MentorSession", str(session_id)
         )
 
         return ai_msg
+
+    async def _reply(self, user_id: uuid.UUID, mentor_session: MentorSession, message: str):
+        from app.modules.recommendations.context_aggregator import ContextAggregator
+        from app.modules.recommendations.recommendation_engine import RecommendationEngine
+        from app.modules.training.llm import LLMUnavailable, get_llm
+
+        context = await ContextAggregator(self.session).build_context(user_id)
+        recs = (await RecommendationEngine().generate_candidates(context)).recommendations
+        llm = get_llm()
+        if llm.available:
+            history = [
+                {"role": "assistant" if m.role == "AI" else "user", "content": m.content[:1500]}
+                for m in list(mentor_session.messages)[-10:]
+                if m.role in ("USER", "AI")
+            ]
+            history.append({"role": "user", "content": message})
+            facts = "; ".join(f"{r.title} ({r.reason})" for r in recs[:4]) or "no saved activity yet"
+            system = (
+                "You are a concise, honest career mentor for an IT student. Use ONLY these facts about the student "
+                f"and never invent achievements, scores or experience: {facts}. If you do not know something, say so. "
+                "Reply in under 150 words, plain text."
+            )
+            try:
+                return (await llm.complete_text(system, history, max_tokens=500))[:2000], {"provider": "llm"}
+            except LLMUnavailable:
+                pass  # fall through to the honest local reply
+        steps = "\n".join(f"{i}. {r.title}: {r.reason}" for i, r in enumerate(recs[:3], 1))
+        reply = (
+            "The AI mentor chat is not available: no AI provider is configured on this server, so I cannot hold a real "
+            "conversation or answer free-form questions."
+            + "\n\nHere is what your saved activity suggests as next steps:\n"
+            + steps
+        )
+        return reply, {"provider": "none"}
 
     async def create_goal(self, user_id: uuid.UUID, request: CareerGoalCreate) -> CareerGoal:
         goal = CareerGoal(

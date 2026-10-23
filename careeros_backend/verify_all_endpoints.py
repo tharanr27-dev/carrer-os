@@ -1,5 +1,6 @@
 import asyncio
 import io
+import secrets
 import json
 import uuid
 from datetime import date, datetime, timezone
@@ -21,6 +22,9 @@ from endpoint_integrations_map import FRONTEND_INTEGRATIONS
 BASE_URL = "http://127.0.0.1:8000"
 
 async def setup_test_users():
+    from app.core.safety import require_local_database
+
+    require_local_database("create test users (including an admin)")
     async with AsyncSessionLocal() as session:
         # 1. Admin Role & Permissions
         all_perms = [
@@ -60,7 +64,7 @@ async def setup_test_users():
         if not admin_user:
             admin_user = User(
                 email="admin_test@careeros.ai",
-                hashed_password=get_password_hash("AdminPass123!"),
+                hashed_password=get_password_hash(secrets.token_urlsafe(24)),
                 status=UserStatus.ACTIVE,
                 roles=[admin_role]
             )

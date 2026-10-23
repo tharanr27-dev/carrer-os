@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.tasks import spawn
@@ -50,7 +51,10 @@ class CommunicationService:
             )
 
         elif event_type == "MESSAGE_SUBMITTED":
-            text = payload.get("text")
+            text = (payload.get("text") or "").strip()[:5000]
+            if not text:
+                await manager.send_json({"event_type": "ERROR", "payload": {"message": "Message is empty."}}, session_id)
+                return
 
             # Save the raw text immediately
             message = await self.repository.save_message(
@@ -106,8 +110,16 @@ class CommunicationService:
 
     async def _async_generate_report(self, session_id: uuid.UUID):
         from app.db.session import AsyncSessionLocal
-        report_data = await self.eval_engine.generate_final_report([])
         async with AsyncSessionLocal() as session:
+            # The report is computed from the messages the student actually sent in this session.
+            texts = (
+                await session.execute(
+                    select(CommunicationMessage.content_text)
+                    .where(CommunicationMessage.session_id == session_id, CommunicationMessage.speaker == "USER")
+                    .order_by(CommunicationMessage.created_at.asc())
+                )
+            ).scalars().all()
+            report_data = await self.eval_engine.generate_final_report([{"text": t} for t in texts if t])
             repository = CommunicationRepository(session)
             await repository.save_report(
                 CommunicationReport(

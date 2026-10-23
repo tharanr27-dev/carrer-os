@@ -27,3 +27,4 @@ bandit>=1.7.5
 gunicorn>=21.2.0
 prometheus-client>=0.20.0
 python-dotenv>=1.0.0
+pypdf>=4.0.0,<6  # local PDF text extraction for resume analysis

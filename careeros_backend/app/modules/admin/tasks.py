@@ -101,57 +101,21 @@ def run_health_snapshot(self):
 
 @celery_app.task(name="app.modules.admin.tasks.refresh_dashboard_cache", bind=True)
 def refresh_dashboard_cache(self):
-    """
-    Recomputes and refreshes the admin:dashboard:summary key in Redis.
-    Prevents stale dashboard data after 10-minute TTL expiry.
-    """
-    import json
-
+    """No-op by design: the admin API computes the dashboard summary live from the database, so there is nothing to
+    pre-compute. (This task used to write invented figures such as 1500 users into the cache.)"""
     job_name = "refresh_dashboard_cache"
     started_at = datetime.now(timezone.utc)
-
-    try:
-        # In production: query live user counts, pending moderation, AI usage from DB
-        # Here we calculate representative aggregates
-        fresh_summary = {
-            "total_users": _query_total_users(),
-            "active_users": _query_active_users(),
-            "pending_moderation_count": _query_pending_moderation(),
-            "system_status": "healthy",
-            "unresolved_reports": _query_unresolved_reports(),
-            "ai_daily_token_usage": _query_ai_daily_tokens(),
-            "ai_monthly_cost_usd": _query_ai_monthly_cost(),
-            "refreshed_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-        _redis_set_sync("admin:dashboard:summary", json.dumps(fresh_summary), ex=600)
-        _record_job_history(job_name, "completed", started_at)
-        return {"status": "ok", "refreshed_at": fresh_summary["refreshed_at"]}
-
-    except Exception as exc:
-        _record_job_history(job_name, "failed", started_at, error=str(exc))
-        raise self.retry(exc=exc, countdown=60, max_retries=2)
+    _record_job_history(job_name, "completed", started_at)
+    return {"status": "skipped", "reason": "Dashboard summary is computed live by the API; nothing to cache."}
 
 
 @celery_app.task(name="app.modules.admin.tasks.aggregate_ai_tokens", bind=True)
 def aggregate_ai_tokens(self):
-    """
-    Aggregates daily and monthly token usage across all LLM providers.
-    Writes to SystemMetric table for dashboard charting.
-    """
+    """No-op until an AI usage log is aggregated. It must not record placeholder token or cost figures."""
     job_name = "aggregate_ai_tokens"
     started_at = datetime.now(timezone.utc)
-
-    try:
-        # In production: SUM token fields from ai_usage_log table grouped by provider/date
-        _record_system_metric("ai.daily_tokens", 520400.0, {"period": "daily"})
-        _record_system_metric("ai.monthly_cost_usd", 152.20, {"period": "monthly"})
-        _record_job_history(job_name, "completed", started_at)
-        return {"status": "ok"}
-
-    except Exception as exc:
-        _record_job_history(job_name, "failed", started_at, error=str(exc))
-        raise self.retry(exc=exc, countdown=120, max_retries=2)
+    _record_job_history(job_name, "completed", started_at)
+    return {"status": "skipped", "reason": "No AI usage aggregation is implemented, so no metrics are recorded."}
 
 
 @celery_app.task(name="app.modules.admin.tasks.cleanup_moderation_queue", bind=True)
@@ -223,28 +187,3 @@ def _record_system_metric(metric_name: str, value: float, tags: dict = None):
     )
 
 
-# ── Stub DB Query Helpers (replace with real ORM queries in production) ──────
-
-
-def _query_total_users() -> int:
-    return 1500
-
-
-def _query_active_users() -> int:
-    return 950
-
-
-def _query_pending_moderation() -> int:
-    return 8
-
-
-def _query_unresolved_reports() -> int:
-    return 4
-
-
-def _query_ai_daily_tokens() -> int:
-    return 520400
-
-
-def _query_ai_monthly_cost() -> float:
-    return 152.20

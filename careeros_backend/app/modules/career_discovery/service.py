@@ -61,8 +61,10 @@ class DiscoveryService:
         # We pass only primitive/serialisable data so the background coroutine
         # can open its own DB session (the request-scoped session will be closed
         # by the time this background task actually runs).
+        # Multiple-choice answers carry their picks in selected_options (answer_text is empty for them).
         raw_answers = [
-            {"q_id": str(a.question_id), "text": a.answer_text} for a in answers
+            {"q_id": str(a.question_id), "text": a.answer_text or ", ".join(str(o) for o in (a.selected_options or []))}
+            for a in answers
         ]
         background_tasks.add_task(
             self._process_ai_report_isolated, user_id, assessment.id, raw_answers

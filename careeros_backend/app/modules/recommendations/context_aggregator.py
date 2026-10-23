@@ -9,10 +9,12 @@ from app.modules.communication.models import CommunicationReport, CommunicationS
 from app.modules.interviews.models import InterviewReport, InterviewSession
 from app.modules.learning.models import LearningRoadmap, SkillProgress
 from app.modules.mentor.models import CareerGoal
-from app.modules.resumes.models import ResumeAnalysis
+from app.modules.resumes.models import Resume, ResumeAnalysis, ResumeSuggestion
 
 # Cross-module imports — read-only queries from prior phases
-from app.modules.users.models import Profile
+from app.modules.training.models import TrainingAttempt, TrainingAttemptItem, TrainingProfile
+from app.modules.training.progress import compute_progress
+from app.modules.users.models import Profile, Project
 
 logger = logging.getLogger("careeros")
 
@@ -41,6 +43,11 @@ class ContextAggregator:
             "communication_scores": {},
             "skill_progress": [],
             "roadmap_status": None,
+            "has_career_report": False,
+            "target_role": None,
+            "training": None,
+            "resume_suggestions": [],
+            "resume_method": None,
         }
 
         # --- Phase 4: Profile ---
@@ -62,21 +69,33 @@ class ContextAggregator:
             .limit(1)
         )
         career_report = career_result.scalars().first()
+        context["has_career_report"] = career_report is not None
         if career_report and career_report.skill_gaps:
             context["resume_weaknesses"].extend(career_report.skill_gaps.get("missing", []))
 
-        # --- Phase 6: Resume ATS ---
+        # --- Phase 6: Resume analysis (this user's latest COMPLETED résumé only) ---
         resume_result = await self.session.execute(
-            select(ResumeAnalysis).order_by(ResumeAnalysis.created_at.desc()).limit(1)
+            select(ResumeAnalysis)
+            .join(Resume, Resume.id == ResumeAnalysis.resume_id)
+            .where(Resume.user_id == user_id, Resume.status == "COMPLETED")
+            .order_by(ResumeAnalysis.created_at.desc())
+            .limit(1)
         )
         resume_analysis = resume_result.scalars().first()
         if resume_analysis:
             context["ats_score"] = resume_analysis.ats_score
-            context["resume_weaknesses"].extend(
-                resume_analysis.keyword_analysis.get("missing", [])
-                if resume_analysis.keyword_analysis
-                else []
-            )
+            kw = resume_analysis.keyword_analysis or {}
+            context["resume_method"] = kw.get("method")
+            context["resume_weaknesses"].extend(kw.get("missing", []))
+            suggestion_rows = (
+                await self.session.execute(
+                    select(ResumeSuggestion).where(ResumeSuggestion.analysis_id == resume_analysis.id)
+                )
+            ).scalars().all()
+            context["resume_suggestions"] = [
+                {"category": s.category, "text": s.suggestion_text, "impact": s.impact}
+                for s in sorted(suggestion_rows, key=lambda x: {"HIGH": 0, "MEDIUM": 1}.get(x.impact, 2))[:3]
+            ]
 
         # --- Phase 7: Career Goals ---
         goals_result = await self.session.execute(
@@ -141,6 +160,40 @@ class ContextAggregator:
                 "target_role": roadmap.target_role,
                 "version": roadmap.version,
             }
+
+        # --- Interview Prep (training): real saved attempts only ---
+        tprof = (
+            await self.session.execute(select(TrainingProfile).where(TrainingProfile.user_id == user_id))
+        ).scalars().first()
+        context["target_role"] = tprof.target_role if tprof else None
+        item_rows = (
+            await self.session.execute(
+                select(TrainingAttemptItem).where(
+                    TrainingAttemptItem.user_id == user_id, TrainingAttemptItem.score.is_not(None)
+                ).limit(4000)
+            )
+        ).scalars().all()
+        attempt_rows = (
+            await self.session.execute(
+                select(TrainingAttempt).where(TrainingAttempt.user_id == user_id).order_by(TrainingAttempt.started_at.desc()).limit(200)
+            )
+        ).scalars().all()
+        has_projects = bool(
+            profile
+            and (await self.session.execute(select(Project.id).where(Project.profile_id == profile.id).limit(1))).first()
+        )
+        items = [
+            {"round": i.round, "topic": i.topic, "difficulty": i.difficulty, "score": i.score, "score_kind": i.score_kind,
+             "time_taken_sec": i.time_taken_sec, "answered_at": i.answered_at.isoformat() if i.answered_at else None}
+            for i in item_rows
+        ]
+        attempts = [
+            {"id": str(a.id), "status": a.status, "round": a.round, "topic": a.topic, "mode": a.mode,
+             "ended_at": a.ended_at.isoformat() if a.ended_at else None, "summary": a.summary,
+             "started_at": a.started_at.isoformat() if a.started_at else None}
+            for a in attempt_rows
+        ]
+        context["training"] = compute_progress(items, attempts, has_projects=has_projects)
 
         logger.info(f"Context aggregation complete for user {user_id}")
         return context

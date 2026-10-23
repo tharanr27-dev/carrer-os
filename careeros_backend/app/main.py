@@ -36,6 +36,7 @@ from app.modules.resumes.router import router as resumes_router
 from app.modules.training.router import router as training_router
 from app.modules.users.router import router as users_router
 
+import logging
 from contextlib import asynccontextmanager
 from app.db.base import Base
 from app.db.session import engine
@@ -43,8 +44,19 @@ from app.db.session import engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    mode = settings.AUTO_CREATE_TABLES.strip().lower()
+    if mode == "true" or (mode == "auto" and "sqlite" in settings.sqlalchemy_database_uri.lower()):
+        # Additive only (never drops or alters): creates missing tables. Defaults to SQLite so that merely starting
+        # the app can never write to a remote database.
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    else:
+        logging.getLogger("careeros").warning(
+            "Not creating tables at startup (AUTO_CREATE_TABLES=%s and the database is not SQLite). "
+            "Tables added by new features must be provisioned explicitly "
+            "(see scripts/create_supabase_schema.py) or by setting AUTO_CREATE_TABLES=true.",
+            mode,
+        )
     yield
 
 

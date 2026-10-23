@@ -7,6 +7,7 @@ Covers every endpoint the frontend calls, positive and negative paths, for the s
 recruiter, placement-officer and admin roles. Exits non-zero if any check fails.
 """
 
+import os
 import asyncio
 import io
 import json
@@ -173,8 +174,9 @@ def main():
     if an.status_code == 200:
         check("analysis shape", {"ats_score", "grammar_score", "quality_score", "keyword_analysis", "suggestions"} <= an.json()["data"].keys())
     dl = student.get(f"/resumes/{up['id']}/download")
-    check("GET /resumes/{id}/download", dl.status_code == 200 and "url" in dl.json().get("data", {}), dl.text[:200])
+    check("GET /resumes/{id}/download returns the stored file", dl.status_code == 200 and dl.content == pdf and dl.headers.get("content-type") == "application/pdf", dl.text[:100])
     other = register(f"other_{tag}@test.com")
+    expect("GET /resumes/{id}/download other user -> 403", other.get(f"/resumes/{up['id']}/download"), 403)
     expect("GET /resumes/{id}/analysis other user -> 403", other.get(f"/resumes/{up['id']}/analysis"), 403)
 
     # ── mentor ───────────────────────────────────────────────────────────────
@@ -346,7 +348,7 @@ def main():
     # ── admin ────────────────────────────────────────────────────────────────
     expect("GET /admin/dashboard/summary as student -> 403", student.get("/admin/dashboard/summary"), 403)
     expect("GET /admin/users as student -> 403", student.get("/admin/users"), 403)
-    admin = Client("admin@careeros.ai", "AdminPass123!")
+    admin = Client(os.environ["E2E_ADMIN_EMAIL"], os.environ["E2E_ADMIN_PASSWORD"])  # same values used to seed
     expect("admin login", admin.login(), 200)
     am = admin.get("/auth/me").json()
     check("admin has admin:* permissions", any(p.startswith("admin:") for p in am["permissions"]))

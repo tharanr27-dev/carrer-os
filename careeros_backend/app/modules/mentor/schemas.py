@@ -1,10 +1,10 @@
 from typing import List, Optional
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 
 class ChatMessageRequest(BaseModel):
-    content: str
+    content: str = Field(min_length=1, max_length=4000)
 
 
 class MentorMessageResponse(BaseModel):

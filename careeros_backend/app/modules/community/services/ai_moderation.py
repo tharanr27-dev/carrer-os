@@ -3,19 +3,16 @@ from typing import Any, Dict, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class AIContentModerationEngine:
+class AIContentModerationEngine:  # historical name; rule-based, see moderate_content
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def moderate_content(self, text: str) -> Tuple[bool, Dict[str, Any]]:
         """
-        Uses existing AI Global Pipeline to check for toxicity/spam.
-        Returns a tuple: (is_safe: bool, scores: Dict)
+        Simple keyword filter. It is NOT an AI model: it only flags a few listed words and misses almost
+        everything else (toxicity, spam, harassment in other words). Human moderation is still required.
+        Returns a tuple: (is_safe: bool, scores: Dict) where the scores are fixed markers, not probabilities.
         """
-        # Mock logic representing an integration with the AI pipeline.
-        # In a real implementation, it sends the text to the LLM router and parses the JSON response.
-
-        # We assume safe for now unless text contains specific bad words (mock)
         bad_words = ["spam", "toxic", "hate"]
         is_safe = True
         scores = {"toxicity": 0.0, "spam": 0.0}

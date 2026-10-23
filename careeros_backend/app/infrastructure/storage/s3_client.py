@@ -5,8 +5,8 @@ logger = logging.getLogger("careeros")
 
 class S3Client:
     """
-    AWS S3 Abstraction Layer.
-    In a production environment, this leverages aiobotocore for async AWS operations.
+    SIMULATED S3 client: it stores nothing and returns fake URLs. The application no longer uses it (uploads go
+    through LocalFileStorage); it is kept only because an old contract test imports it. Do not use it for real files.
     """
 
     def __init__(self, bucket_name: str = "careeros-resumes"):

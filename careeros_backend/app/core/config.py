@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from pathlib import Path
 from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -77,6 +78,17 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "100"))
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", PUBLIC_PLACEHOLDER_SECRET_KEY)
+    # Whether startup runs Base.metadata.create_all(): "auto" (default) = only for SQLite; "true" = always;
+    # "false" = never. Non-SQLite databases are never written to at startup unless you opt in explicitly.
+    AUTO_CREATE_TABLES: str = os.getenv("AUTO_CREATE_TABLES", "auto")
+
+    # Private directory for uploaded files (git-ignored). Override in deployment, e.g. a mounted volume.
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parents[2] / "data" / "uploads"))
+
+    # Failed-login throttling (see app/core/login_throttle.py)
+    LOGIN_MAX_FAILURES_PER_ACCOUNT: int = int(os.getenv("LOGIN_MAX_FAILURES_PER_ACCOUNT", "5"))
+    LOGIN_MAX_FAILURES_PER_IP: int = int(os.getenv("LOGIN_MAX_FAILURES_PER_IP", "30"))
+    LOGIN_FAILURE_WINDOW_SECONDS: int = int(os.getenv("LOGIN_FAILURE_WINDOW_SECONDS", "900"))
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
     ALGORITHM: str = "HS256"

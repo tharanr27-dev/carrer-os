@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
+from app.core.login_throttle import login_throttle
 from app.db.session import get_db
 from app.modules.auth.models import User
 from app.modules.auth.schemas import (
@@ -21,9 +22,17 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=Token)
-async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
-    auth_service = AuthService(db)
-    return await auth_service.authenticate(credentials)
+async def login(credentials: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
+    ip = request.client.host if request.client else "unknown"
+    login_throttle.check(credentials.email, ip)  # 429 before any password check while blocked
+    try:
+        token = await AuthService(db).authenticate(credentials)
+    except HTTPException as exc:
+        if exc.status_code == 401:  # wrong credentials only; inactive accounts etc. are not guesses
+            login_throttle.record_failure(credentials.email, ip)
+        raise
+    login_throttle.record_success(credentials.email, ip)
+    return token
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)

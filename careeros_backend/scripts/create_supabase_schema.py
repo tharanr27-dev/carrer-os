@@ -43,6 +43,12 @@ def sanitize_uri(uri: str) -> str:
 
 
 async def provision_schema():
+    import os
+
+    if os.getenv("CONFIRM_REMOTE_SCHEMA", "").lower() != "yes":
+        print("Refusing to run: this script creates missing tables in the database named by DATABASE_URL. "
+              "Review deployment/training_tables.postgres.sql, then re-run with CONFIRM_REMOTE_SCHEMA=yes.")
+        return False
     db_uri = settings.sqlalchemy_database_uri
     masked_uri = sanitize_uri(db_uri)
 
