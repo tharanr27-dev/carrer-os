@@ -75,3 +75,6 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# local file storage for uploads (resumes); never commit user files
+careeros_backend/data/

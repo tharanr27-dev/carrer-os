@@ -9,6 +9,7 @@ Every screen talks to the real API: `UI → lib/api.ts → /api/v1/... → servi
 # 1. Backend (SQLite by default in development, see careeros_backend/.env)
 cd careeros_backend
 pip install -r requirements.txt
+# set SEED_ADMIN_PASSWORD first (see below); seeding only runs against SQLite unless ALLOW_REMOTE_DB_SCRIPTS=yes
 python -m scripts.seed_dev          # RBAC roles, admin user, one career assessment (idempotent)
 python -m uvicorn app.main:app --port 8000
 
@@ -19,8 +20,8 @@ npm install
 npm run dev                         # http://localhost:3000
 ```
 
-Admin sign-in after seeding: `admin@careeros.ai` / `AdminPass123!` (override with `SEED_ADMIN_EMAIL` /
-`SEED_ADMIN_PASSWORD`). Everyone else registers through the UI.
+Seeding requires an admin password you choose: set `SEED_ADMIN_PASSWORD` (12+ characters) and optionally
+`SEED_ADMIN_EMAIL` (default `admin@careeros.ai`) in your shell first; there is no default password. Everyone else registers through the UI.
 
 ### Roles
 The backend decides the role, the UI never lets you pick one at sign-in:
@@ -50,6 +51,7 @@ cd careeros_backend && python -m pytest
 
 # Live API contract test: exercises every endpoint the frontend calls, all four roles,
 # positive + negative paths, WebSockets included. Run against a freshly seeded backend:
+export SEED_ADMIN_PASSWORD="<choose-12+-chars>" E2E_ADMIN_EMAIL=admin@careeros.ai E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
 DATABASE_URL=sqlite+aiosqlite:///./careeros_e2e.db RATE_LIMIT_PER_MINUTE=100000 python -m scripts.seed_dev
 DATABASE_URL=sqlite+aiosqlite:///./careeros_e2e.db RATE_LIMIT_PER_MINUTE=100000 python -m uvicorn app.main:app --port 8000
 python -m scripts.e2e_live

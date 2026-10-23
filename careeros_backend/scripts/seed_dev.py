@@ -1,7 +1,8 @@
 """Idempotent development seed: RBAC roles/permissions, an admin user, and one assessment.
 
 Run from careeros_backend/:  python -m scripts.seed_dev
-Admin credentials come from SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (dev defaults below).
+Admin credentials come from SEED_ADMIN_EMAIL (default admin@careeros.ai) and SEED_ADMIN_PASSWORD, which MUST be set
+(at least 12 characters). Refuses to run against a non-SQLite database unless ALLOW_REMOTE_DB_SCRIPTS=yes.
 """
 
 import asyncio
@@ -19,7 +20,7 @@ from app.modules.auth.models import Permission, Role, User, UserStatus
 from app.modules.career_discovery.models import AssessmentQuestion, AssessmentTemplate
 
 ADMIN_EMAIL = os.getenv("SEED_ADMIN_EMAIL", "admin@careeros.ai")
-ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD", "AdminPass123!")
+ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD")  # required: there is deliberately no default
 
 ADMIN_PERMISSIONS = [
     "admin:read",
@@ -51,6 +52,11 @@ ASSESSMENT_QUESTIONS = [
 
 
 async def seed() -> None:
+    from app.core.safety import require_local_database
+
+    require_local_database("seed an admin account and roles")
+    if not ADMIN_PASSWORD or len(ADMIN_PASSWORD) < 12:
+        raise SystemExit("SEED_ADMIN_PASSWORD must be set to a password of at least 12 characters.")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import UUID4, BaseModel, EmailStr
+from pydantic import UUID4, BaseModel, EmailStr, Field
 
 
 class Token(BaseModel):
@@ -16,7 +16,8 @@ class UserLogin(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    # Applies to NEW passwords only; UserLogin stays unrestricted so existing accounts can still sign in.
+    password: str = Field(min_length=8, max_length=128)
 
 
 class UserResponse(BaseModel):

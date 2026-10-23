@@ -85,12 +85,12 @@ def test_valid_generated_questions_pass():
     {"prompt": "This was asked at Google in a real interview: what is a stack?"},   # company claim
 ])
 def test_malformed_generated_mcq_rejected(mutation):
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):  # pydantic ValidationError is a ValueError
         validate_generated({**GOOD_MCQ, **mutation}, "mcq")
 
 
 def test_text_question_requires_model_answer():
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):  # pydantic ValidationError is a ValueError
         validate_generated({**GOOD_TEXT, "model_answer": "too short"}, "text")
 
 

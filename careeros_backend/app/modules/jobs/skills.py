@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List
+from typing import List
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,24 +11,8 @@ from app.modules.users.models import Profile, ProfileSkill, Skill
 logger = logging.getLogger("careeros")
 
 
-def _skill_names(raw: Any) -> List[str]:
-    """Resume extraction may store strings or {"name": ...} objects; accept both."""
-    names: List[str] = []
-    items = list(raw.values()) if isinstance(raw, dict) else raw
-    if not isinstance(items, list):
-        return names
-    for item in items:
-        if isinstance(item, str):
-            names.append(item)
-        elif isinstance(item, dict):
-            value = item.get("name") or item.get("skill")
-            if isinstance(value, str):
-                names.append(value)
-    return names
-
-
 async def load_student_skills(db: AsyncSession, user_id: UUID) -> List[str]:
-    """Skills from the student's profile and resume. Never raises: matching is optional."""
+    """Skills from the student's profile and (real) résumé extraction. Never raises: matching is optional."""
     try:
         rows = await db.execute(
             select(Skill.name)
@@ -38,13 +22,20 @@ async def load_student_skills(db: AsyncSession, user_id: UUID) -> List[str]:
         )
         skills = [r[0] for r in rows.all() if r[0]]
 
-        rows = await db.execute(
+        # Skills read from the student's latest completed résumé, but ONLY from analyses carrying the
+        # "text_match_v1" marker (real extraction). Older rows were written by a simulated pipeline that stored the
+        # same canned skills for every upload; those are ignored so nobody is credited with skills they lack.
+        latest = await db.execute(
             select(ResumeMetadata.extracted_skills)
             .join(Resume, Resume.id == ResumeMetadata.resume_id)
-            .where(Resume.user_id == user_id)
+            .where(Resume.user_id == user_id, Resume.status == "COMPLETED")
+            .order_by(Resume.created_at.desc())
+            .limit(1)
         )
-        for (extracted,) in rows.all():
-            skills.extend(_skill_names(extracted))
+        row = latest.first()
+        extracted = row[0] if row else None
+        if isinstance(extracted, dict) and extracted.get("method") == "text_match_v1":
+            skills.extend(str(s) for s in extracted.get("skills", []) if isinstance(s, str))
 
         seen, unique = set(), []
         for s in skills:

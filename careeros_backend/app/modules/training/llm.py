@@ -34,15 +34,10 @@ class TrainingLLM:
     def available(self) -> bool:
         return bool(self.api_key)
 
-    async def complete_json(self, system: str, user: str, max_tokens: int = 1800) -> Any:
+    async def _complete(self, system: str, messages: list, max_tokens: int) -> str:
         if not self.available:
             raise LLMUnavailable("AI provider is not configured")
-        payload = {
-            "model": self.model,
-            "max_tokens": max_tokens,
-            "system": system,
-            "messages": [{"role": "user", "content": user}],
-        }
+        payload = {"model": self.model, "max_tokens": max_tokens, "system": system, "messages": messages}
         headers = {
             "x-api-key": self.api_key,
             "anthropic-version": "2023-06-01",
@@ -62,10 +57,23 @@ class TrainingLLM:
             raise LLMUnavailable("AI provider error")
         try:
             blocks = resp.json().get("content") or []
-            raw = "".join(b.get("text", "") for b in blocks if isinstance(b, dict))
-            return extract_json(raw)
+            return "".join(b.get("text", "") for b in blocks if isinstance(b, dict))
         except (ValueError, AttributeError, TypeError):
             raise LLMUnavailable("AI provider returned unreadable output")
+
+    async def complete_json(self, system: str, user: str, max_tokens: int = 1800) -> Any:
+        raw = await self._complete(system, [{"role": "user", "content": user}], max_tokens)
+        try:
+            return extract_json(raw)
+        except (ValueError, TypeError):
+            raise LLMUnavailable("AI provider returned unreadable output")
+
+    async def complete_text(self, system: str, messages: list, max_tokens: int = 600) -> str:
+        """Plain-text chat completion. `messages`: [{"role": "user"|"assistant", "content": str}, ...]."""
+        text = (await self._complete(system, messages, max_tokens)).strip()
+        if not text:
+            raise LLMUnavailable("AI provider returned an empty reply")
+        return text
 
 
 def extract_json(raw: str) -> Any:

@@ -76,17 +76,31 @@ async def test_student_ranking_service_sorts_and_persists_scores():
     ]
     eligibility = SimpleNamespace(ranking_score=None)
 
+    # Ranking now uses each student's real saved records. The metrics lookup is stubbed here (it has its own
+    # database-backed tests); student A has stronger records than student B.
+    metrics = {
+        student_a: {"cgpa": 9.0, "ats_score": 90.0, "interview_score": 80.0, "communication_score": 70.0,
+                    "learning_progress": 50.0, "certifications": 2, "projects": 3, "hackathons": None, "recommendations": None},
+        student_b: {"cgpa": 6.0, "ats_score": 40.0, "interview_score": None, "communication_score": None,
+                    "learning_progress": None, "certifications": None, "projects": 1, "hackathons": None, "recommendations": None},
+    }
+
+    async def fake_metrics(_session, student_id):
+        return metrics[student_id]
+
     with patch(
         "app.modules.placements.services.student_ranking_service.PlacementRepository"
-    ) as repo_cls:
+    ) as repo_cls, patch(
+        "app.modules.placements.services.student_ranking_service.student_metrics", new=fake_metrics
+    ):
         repo = repo_cls.return_value
-        repo.get_drive_registrations = AsyncMock(return_value=registrations)
+        repo.get_drive_registrations = AsyncMock(return_value=list(reversed(registrations)))
         repo.get_drive_eligibility = AsyncMock(return_value=eligibility)
         repo.session.commit = AsyncMock()
 
         rankings = await StudentRankingService(AsyncMock()).rank_students_for_drive(drive_id)
 
-    assert [entry["student_id"] for entry in rankings] == [str(student_a), str(student_b)]
+    assert [entry["student_id"] for entry in rankings] == [str(student_a), str(student_b)]  # sorted by real scores
     assert rankings[0]["score"] >= rankings[1]["score"]
     assert repo.session.commit.await_count == 2
     assert eligibility.ranking_score == rankings[-1]["score"]

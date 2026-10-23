@@ -62,15 +62,24 @@ export function ResumeCenterView() {
   const upload = useMutation({
     mutationFn: (file: File) => api.uploadResume(file),
     onSuccess: async (result) => {
-      setNotice(`${result.file_name} uploaded. AI analysis is running.`);
+      setNotice(`${result.file_name} uploaded. Analysis is running.`);
       setSelectedId(result.id);
       await queryClient.invalidateQueries({ queryKey: ["resumes"] });
     },
   });
 
   const download = useMutation({
-    mutationFn: (id: string) => api.resumeDownloadUrl(id),
-    onSuccess: ({ url }) => window.open(url, "_blank", "noopener"),
+    mutationFn: (id: string) => api.resumeDownload(id),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
   });
 
   const onFile = (file: File | undefined) => {
@@ -88,7 +97,7 @@ export function ResumeCenterView() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Resume Center</h1>
-          <p className="text-sm text-muted-foreground">Optimize your resume for applicant tracking systems (ATS) using AI.</p>
+          <p className="text-sm text-muted-foreground">Check how complete, readable and well worded your resume is for applicant tracking systems (rule-based analysis).</p>
         </div>
         <Button variant="outline" onClick={() => inputRef.current?.click()} isLoading={upload.isPending}>
           Upload New Resume
@@ -195,9 +204,23 @@ export function ResumeCenterView() {
                   <CardDescription className="text-xs">{activeResume.file_name}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {result.keyword_analysis?.method === "rule_based_v1" ? (
+                    <p className="rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground" data-testid="analysis-note">
+                      Rule-based measurements of this document (readiness, wording and mechanics). They are not AI judgements and not
+                      the output of any company&apos;s ATS.
+                      {Array.isArray(result.keyword_analysis.warnings) && result.keyword_analysis.warnings.length > 0
+                        ? ` ${(result.keyword_analysis.warnings as string[]).join(" ")}`
+                        : ""}
+                    </p>
+                  ) : (
+                    <p role="alert" className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-400" data-testid="analysis-legacy">
+                      This analysis came from an earlier simulated version and is NOT based on your file. Upload the résumé again
+                      for a real analysis.
+                    </p>
+                  )}
                   {[
-                    { label: "ATS Score", value: result.ats_score, tone: "bg-indigo-500" },
-                    { label: "Grammar", value: result.grammar_score, tone: "bg-teal-500" },
+                    { label: "ATS readiness", value: result.ats_score, tone: "bg-indigo-500" },
+                    { label: "Writing mechanics", value: result.grammar_score, tone: "bg-teal-500" },
                     { label: "Overall Quality", value: result.quality_score, tone: "bg-amber-500" },
                   ].map((m) => (
                     <div key={m.label} className="space-y-1">
@@ -252,7 +275,13 @@ export function ResumeCenterView() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-muted-foreground">{String(value)}</p>
+                          <p className="text-muted-foreground">
+                            {value !== null && typeof value === "object"
+                              ? Object.entries(value as Record<string, unknown>)
+                                  .map(([k, v]) => `${k.replace(/_/g, " ")}: ${typeof v === "boolean" ? (v ? "yes" : "no") : String(v)}`)
+                                  .join(" · ")
+                              : String(value)}
+                          </p>
                         )}
                       </div>
                     ))}

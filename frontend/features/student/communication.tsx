@@ -76,7 +76,7 @@ export function CommunicationCoachView() {
   React.useEffect(() => {
     if (report.data && notified.current !== report.data.session_id) {
       notified.current = report.data.session_id;
-      addNotification("learning", "Communication report ready", `Overall score: ${Math.round(report.data.overall_score)}/100`, "/workspace?tab=communication");
+      addNotification("learning", "Communication report ready", `Overall score: ${report.data.overall_score.toFixed(1)}/10`, "/workspace?tab=communication");
       void queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
     }
   }, [report.data, addNotification, queryClient]);
@@ -109,7 +109,7 @@ export function CommunicationCoachView() {
         <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
           <MessageSquareText className="h-7 w-7 text-primary" /> Communication Coach
         </h1>
-        <p className="text-sm text-muted-foreground">Get live grammar, tone and clarity feedback on what you write.</p>
+        <p className="text-sm text-muted-foreground">Get feedback on tone, clarity, filler words and writing mechanics. These are text-based measurements, not AI; grammar is a mechanical check only and accent or dialect is never assessed.</p>
       </div>
 
       {phase === "setup" && (
@@ -147,7 +147,7 @@ export function CommunicationCoachView() {
                   <div className="ml-auto max-w-[85%] rounded-xl bg-primary text-primary-foreground p-3 text-sm">{m.text}</div>
                   {m.feedback && (
                     <div className="max-w-[85%] rounded-xl bg-card border border-border p-3 text-xs space-y-1">
-                      <p className="font-semibold">Grammar score: {m.feedback.grammar_score}/10</p>
+                      <p className="font-semibold">Writing-mechanics score: {m.feedback.grammar_score}/10</p>
                       <JsonView value={m.feedback.feedbacks} />
                     </div>
                   )}
@@ -193,15 +193,15 @@ export function CommunicationCoachView() {
               <>
                 {[
                   ["Overall", report.data.overall_score],
-                  ["Grammar", report.data.grammar_score],
+                  ["Writing mechanics", report.data.grammar_score],
                   ["Vocabulary", report.data.vocabulary_score],
                   ["Tone", report.data.tone_score],
-                  ["Fluency", report.data.fluency_score],
+                  ["Filler-word control", report.data.fluency_score],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="space-y-1">
                     <div className="flex justify-between text-xs font-semibold">
                       <span>{label}</span>
-                      <span>{Number(value)}</span>
+                      <span>{Number(value)}/10</span>
                     </div>
                     <Progress value={Math.min(100, Number(value) * (Number(value) <= 10 ? 10 : 1))} indicatorClassName="bg-primary" />
                   </div>

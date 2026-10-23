@@ -195,6 +195,26 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return payload as T;
 }
 
+/** Authenticated file download (same token-refresh behaviour as `request`). Returns the bytes and a file name. */
+async function download(path: string): Promise<{ blob: Blob; filename: string }> {
+  const tokens = () => getStoredTokens()?.accessToken ?? null;
+  let response = await send(path, {}, tokens());
+  if (response.status === 401) {
+    if (await refreshTokens()) response = await send(path, {}, tokens());
+    if (response.status === 401) {
+      clearStoredTokens();
+      sessionExpiredHandler?.();
+    }
+  }
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null);
+    const { message, errors } = messageFromPayload(payload, response.status);
+    throw new ApiError(message, response.status, errors);
+  }
+  const match = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "");
+  return { blob: await response.blob(), filename: match?.[1] ?? "resume" };
+}
+
 /** Calls an enveloped endpoint and returns `data`. */
 async function data<T>(path: string, options?: RequestOptions): Promise<T> {
   const envelope = await request<ApiResponse<T>>(path, options);
@@ -1081,7 +1101,7 @@ export const api = {
   },
   /** `null` = analysis not ready yet. */
   resumeAnalysis: (resumeId: string) => orNull(() => data<ResumeAnalysis>(`/resumes/${resumeId}/analysis`)),
-  resumeDownloadUrl: (resumeId: string) => data<{ url: string }>(`/resumes/${resumeId}/download`),
+  resumeDownload: (resumeId: string) => download(`/resumes/${resumeId}/download`),
 
   // Mentor
   createMentorSession: () => data<MentorSession>("/mentor/sessions", { method: "POST" }),

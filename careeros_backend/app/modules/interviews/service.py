@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime, timezone
+from typing import List
 
 from fastapi import BackgroundTasks
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.tasks import spawn
@@ -24,7 +26,7 @@ class InterviewService:
         self.session = session
         self.repository = InterviewRepository(session)
         self.audit_service = AuditService(session)
-        self.eval_engine = InterviewEvaluationEngine()
+        self.eval_engine = InterviewEvaluationEngine(session)
 
     async def initialize_session(
         self, user_id: uuid.UUID, request: SessionCreateRequest
@@ -38,6 +40,14 @@ class InterviewService:
             )
         )
 
+    async def _asked(self, session_id: uuid.UUID, db: AsyncSession) -> List[str]:
+        rows = await db.execute(
+            select(InterviewQuestion.question_text)
+            .where(InterviewQuestion.session_id == session_id)
+            .order_by(InterviewQuestion.created_at.asc())
+        )
+        return [r[0] for r in rows.all()]
+
     async def handle_websocket_event(
         self, session_id: uuid.UUID, event: dict, background_tasks: BackgroundTasks
     ):
@@ -45,10 +55,12 @@ class InterviewService:
         payload = event.get("payload", {})
 
         if event_type == "START":
-            # Send the very first question
-            question_text = "Let's begin. Could you please introduce yourself and your background?"
+            db_session = await self.repository.get_session(session_id)
+            question_text, skills = await self.eval_engine.next_question(
+                db_session.user_id, db_session.interview_type, db_session.difficulty, asked=[]
+            )
             q = await self.repository.create_question(
-                InterviewQuestion(session_id=session_id, question_text=question_text)
+                InterviewQuestion(session_id=session_id, question_text=question_text, expected_skills=skills)
             )
             await manager.send_json(
                 {
@@ -69,7 +81,6 @@ class InterviewService:
             # Send immediate ACK so client knows we got it
             await manager.send_json({"event_type": "EVALUATING"}, session_id)
 
-            # Offload heavy AI processing to background
             spawn(self._async_evaluate_and_continue(session_id, answer.id, text))
 
         elif event_type == "FINISH":
@@ -78,7 +89,6 @@ class InterviewService:
             db_session.ended_at = datetime.now(timezone.utc)
             await self.session.commit()
 
-            # Offload Final Report Generation
             spawn(self._async_generate_report(session_id))
             await manager.send_json({"event_type": "INTERVIEW_COMPLETED"}, session_id)
 
@@ -86,10 +96,20 @@ class InterviewService:
         self, session_id: uuid.UUID, answer_id: uuid.UUID, answer_text: str
     ):
         from app.db.session import AsyncSessionLocal
-        # 1. Evaluate
-        evaluation = await self.eval_engine.evaluate_answer("dummy_q", answer_text)
+
         async with AsyncSessionLocal() as session:
+            engine = InterviewEvaluationEngine(session)
             repository = InterviewRepository(session)
+
+            # 1. Score the answer against the question it answers (rule-based rubric).
+            question_text = (
+                await session.execute(
+                    select(InterviewQuestion.question_text)
+                    .join(InterviewAnswer, InterviewAnswer.question_id == InterviewQuestion.id)
+                    .where(InterviewAnswer.id == answer_id)
+                )
+            ).scalar_one()
+            evaluation = await engine.evaluate_answer(question_text, answer_text)
             await repository.save_feedback(
                 InterviewFeedback(
                     answer_id=answer_id,
@@ -101,25 +121,30 @@ class InterviewService:
                 )
             )
 
-            # 2. Generate Next Question
-            next_q_text = await self.eval_engine.generate_next_question([], "TECHNICAL")
+            # 2. Choose the next question: a probing follow-up when one exists, otherwise a fresh reviewed question.
+            db_session = await repository.get_session(session_id)
+            asked = await self._asked(session_id, session)
+            next_text, skills = await engine.next_question(
+                db_session.user_id, db_session.interview_type, db_session.difficulty, asked, last_answer=answer_text
+            )
             q = await repository.create_question(
-                InterviewQuestion(session_id=session_id, question_text=next_q_text)
+                InterviewQuestion(session_id=session_id, question_text=next_text, expected_skills=skills)
             )
 
         # 3. Push to WebSocket
         await manager.send_json(
             {
                 "event_type": "NEXT_QUESTION",
-                "payload": {"question_id": str(q.id), "text": next_q_text},
+                "payload": {"question_id": str(q.id), "text": next_text},
             },
             session_id,
         )
 
     async def _async_generate_report(self, session_id: uuid.UUID):
         from app.db.session import AsyncSessionLocal
-        report_data = await self.eval_engine.generate_final_report([])
+
         async with AsyncSessionLocal() as session:
+            report_data = await InterviewEvaluationEngine(session).generate_final_report(session_id)
             repository = InterviewRepository(session)
             await repository.save_report(
                 InterviewReport(

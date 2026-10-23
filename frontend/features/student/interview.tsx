@@ -124,9 +124,9 @@ export function InterviewStudioView() {
     <div className="space-y-6 text-left">
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <Mic className="h-7 w-7 text-primary" /> AI Interview Studio
+          <Mic className="h-7 w-7 text-primary" /> Interview Studio
         </h1>
-        <p className="text-sm text-muted-foreground">Practice live with an AI interviewer and get a scored report.</p>
+        <p className="text-sm text-muted-foreground">Practise with reviewed interview questions and get a report. Scores are rule-based estimates of how well your answers cover the expected ideas, not an AI or recruiter judgement.</p>
       </div>
 
       {phase === "setup" && (

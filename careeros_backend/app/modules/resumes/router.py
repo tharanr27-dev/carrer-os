@@ -1,12 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
 from app.core.responses import APIResponse, success_response
 from app.db.session import get_db
-from app.infrastructure.storage.s3_client import s3_client
+from app.infrastructure.storage.local_storage import get_file_storage
 from app.modules.auth.models import User
 from app.modules.resumes.schemas import (
     ResumeAnalysisResponse,
@@ -14,10 +14,14 @@ from app.modules.resumes.schemas import (
     ResumeUploadResponse,
 )
 from app.modules.resumes.service import ResumeService
+from app.modules.resumes.upload_validation import (
+    ALLOWED_TYPES,
+    MAX_RESUME_BYTES,
+    safe_filename,
+    validate_resume_upload,
+)
 
 router = APIRouter()
-
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 @router.get("", response_model=APIResponse[list[ResumeSummaryResponse]])
@@ -43,16 +47,14 @@ async def upload_resume(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if file.content_type not in [
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ]:
-        raise HTTPException(
-            status_code=400, detail="Invalid file type. Only PDF and DOCX are supported."
-        )
+    # Read at most MAX+1 bytes so an oversized upload is rejected without loading it all into memory.
+    content = await file.read(MAX_RESUME_BYTES + 1)
+    safe_name = validate_resume_upload(file.content_type, file.filename, content)
 
     service = ResumeService(db)
-    resume = await service.upload_and_process(current_user.id, file, background_tasks)
+    resume = await service.upload_and_process(
+        current_user.id, file, background_tasks, file_name=safe_name, content=content
+    )
 
     req_id = getattr(request.state, "request_id", None)
     return success_response(
@@ -90,7 +92,7 @@ async def get_resume_analysis(
 
 
 @router.get("/{resume_id}/download")
-async def get_resume_download_link(
+async def download_resume(
     resume_id: uuid.UUID,
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -101,7 +103,23 @@ async def get_resume_download_link(
     if not resume or resume.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    presigned_url = await s3_client.generate_presigned_url(resume.s3_key)
+    try:
+        content = await get_file_storage().read(resume.s3_key)
+    except ValueError:  # a key that tries to leave the storage root is never served
+        content = None
+    if content is None:
+        raise HTTPException(
+            status_code=404,
+            detail="The original file is not available (it was uploaded before file storage was enabled).",
+        )
 
-    req_id = getattr(request.state, "request_id", None)
-    return success_response(data={"url": presigned_url}, request_id=req_id)
+    safe_name = safe_filename(resume.file_name, ALLOWED_TYPES.get(resume.content_type, ".pdf"))
+    return Response(
+        content=content,
+        media_type=resume.content_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )

@@ -2,8 +2,8 @@ import os
 import time
 from typing import Optional
 
-# Mock Redis client for architecture outline.
-# Production should use aioredis / redis.asyncio
+# In-memory stand-in for Redis: per-process, lost on restart, NOT shared between workers. It is not connected to a
+# Redis server. A multi-worker deployment needs a real Redis client (redis.asyncio) here.
 
 
 class RedisClient:

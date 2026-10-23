@@ -11,7 +11,6 @@ from app.main import app
 from app.modules.training.models import TrainingAttempt, TrainingQuestion
 from app.modules.users.models import Profile, Project
 
-from training_fakes import FakeLLM
 
 P = "/api/v1/training"
 

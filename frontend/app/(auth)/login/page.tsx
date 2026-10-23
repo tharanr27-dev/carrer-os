@@ -12,7 +12,7 @@ import { Chrome, Github, ShieldAlert } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(1, "Password is required"),
   rememberMe: z.boolean().optional(),
 });
 
@@ -134,23 +134,29 @@ export default function LoginPage() {
       {/* Social Logins */}
       <div className="grid grid-cols-3 gap-2">
         <button
-          onClick={() => {}}
-          className="flex items-center justify-center py-2 px-3 border border-border bg-muted/40 hover:bg-muted rounded-lg text-xs hover:text-foreground transition-all cursor-pointer"
-          title="Google Login"
+          type="button"
+          disabled
+          className="flex items-center justify-center py-2 px-3 border border-border bg-muted/40 hover:bg-muted rounded-lg text-xs hover:text-foreground transition-all cursor-not-allowed opacity-50"
+          title="Google sign-in is not available yet"
+          aria-label="Google sign-in is not available yet"
         >
           <Chrome className="h-4 w-4 shrink-0 text-red-400" />
         </button>
         <button
-          onClick={() => {}}
-          className="flex items-center justify-center py-2 px-3 border border-border bg-muted/40 hover:bg-muted rounded-lg text-xs hover:text-foreground transition-all cursor-pointer"
-          title="GitHub Login"
+          type="button"
+          disabled
+          className="flex items-center justify-center py-2 px-3 border border-border bg-muted/40 hover:bg-muted rounded-lg text-xs hover:text-foreground transition-all cursor-not-allowed opacity-50"
+          title="GitHub sign-in is not available yet"
+          aria-label="GitHub sign-in is not available yet"
         >
           <Github className="h-4 w-4 shrink-0 text-slate-300" />
         </button>
         <button
-          onClick={() => {}}
-          className="flex items-center justify-center py-2 px-3 border border-border bg-muted/40 hover:bg-muted rounded-lg text-xs hover:text-foreground transition-all cursor-pointer"
-          title="Microsoft Login"
+          type="button"
+          disabled
+          className="flex items-center justify-center py-2 px-3 border border-border bg-muted/40 hover:bg-muted rounded-lg text-xs hover:text-foreground transition-all cursor-not-allowed opacity-50"
+          title="Microsoft sign-in is not available yet"
+          aria-label="Microsoft sign-in is not available yet"
         >
           {/* Simple Windows icon for Microsoft */}
           <span className="font-semibold text-sky-400 text-[10px]">Azure</span>

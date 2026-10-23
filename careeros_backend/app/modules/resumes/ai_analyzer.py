@@ -1,39 +1,24 @@
 import logging
+from typing import List, Optional
 
+from app.modules.resumes.analysis import analyze_text
 from app.modules.resumes.schemas import AIResumeAnalysis
 
 logger = logging.getLogger("careeros")
 
 
 class AIResumeAnalyzer:
-    """
-    Abides by the strict Shared AI Pipeline rule.
-    Context Builder -> Prompt Manager -> LLM Router -> Validation
+    """Résumé analysis facade.
+
+    Despite the historical name this is NOT an AI model: it runs the local, rule-based analysis in
+    `analysis.py`. Results are labelled `rule_based_v1` in `keyword_analysis["method"]`.
     """
 
     async def analyze_resume_text(
-        self, text_content: str, job_description: str = None
+        self,
+        text_content: str,
+        job_description: Optional[str] = None,
+        target_role: Optional[str] = None,
+        warnings: Optional[List[str]] = None,
     ) -> AIResumeAnalysis:
-        logger.info("Routing through Global AI Pipeline for Resume Analysis...")
-
-        # Stub simulating LLM execution with Strict Structured Output
-        simulated_output = AIResumeAnalysis(
-            ats_score=85.0,
-            grammar_score=95.0,
-            quality_score=80.0,
-            keyword_analysis={
-                "found": ["Python", "FastAPI", "SQLAlchemy"],
-                "missing": ["Docker", "Kubernetes"],
-            },
-            suggestions=[
-                {
-                    "category": "Action Verbs",
-                    "suggestion_text": "Replace 'Helped with' with 'Spearheaded'",
-                    "impact": "HIGH",
-                }
-            ],
-            extracted_skills=["Python", "FastAPI", "PostgreSQL", "SQLAlchemy"],
-        )
-
-        logger.info("AI Resume Analysis completed and validated.")
-        return simulated_output
+        return analyze_text(text_content, target_role=target_role, extraction_warnings=warnings)
