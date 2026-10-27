@@ -111,8 +111,20 @@ class Settings(BaseSettings):
     # Optional: enables AI question generation / answer evaluation in the training module.
     # When unset, training falls back to the reviewed question bank and rule-based scoring.
     ANTHROPIC_API_KEY: str | None = None
+    # Grok (xAI): takes priority over Anthropic when set. OpenAI-compatible chat completions API.
+    XAI_API_KEY: str | None = None
+    # Groq (groq.com, keys start with "gsk_"). The key may be placed in either GROQ_API_KEY or XAI_API_KEY.
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
+    GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
+    XAI_MODEL: str = "grok-3-mini"
+    XAI_API_URL: str = "https://api.x.ai/v1/chat/completions"
     TRAINING_LLM_MODEL: str = "claude-haiku-5-5"
     TRAINING_LLM_TIMEOUT_SECONDS: float = 25.0
+    # AI Mentor chat (uses the same provider/model as above).
+    MENTOR_HISTORY_MESSAGES: int = 10
+    MENTOR_MAX_REPLY_TOKENS: int = 1500
+    MENTOR_MESSAGES_PER_MINUTE: int = 12
 
     @property
     def sqlalchemy_database_uri(self) -> str:

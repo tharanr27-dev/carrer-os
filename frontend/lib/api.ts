@@ -406,6 +406,13 @@ export interface MentorMessage {
   role: string;
   content: string;
 }
+export interface MentorStatus {
+  ai_available: boolean;
+}
+export interface MentorSuggestion {
+  title: string;
+  reason: string;
+}
 export interface MentorSession {
   id: string;
   title: string;
@@ -1107,6 +1114,8 @@ export const api = {
   createMentorSession: () => data<MentorSession>("/mentor/sessions", { method: "POST" }),
   /** `null` = no conversation yet. */
   latestMentorSession: () => orNull(() => data<MentorSession>("/mentor/sessions/latest")),
+  mentorStatus: () => data<MentorStatus>("/mentor/status"),
+  mentorSuggestions: () => data<MentorSuggestion[]>("/mentor/suggestions"),
   listGoals: () => data<CareerGoal[]>("/mentor/goals"),
   sendMentorMessage: (sessionId: string, content: string) =>
     data<MentorMessage>(`/mentor/sessions/${sessionId}/message`, { method: "POST", body: { content } }),

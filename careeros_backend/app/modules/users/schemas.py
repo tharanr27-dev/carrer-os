@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import UUID4, AnyHttpUrl, BaseModel, ConfigDict, field_validator
+from pydantic import UUID4, BaseModel, ConfigDict, field_validator
 
 
 class SocialLinks(BaseModel):

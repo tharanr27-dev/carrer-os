@@ -31,6 +31,14 @@ def _fresh_rate_limit():
     _reset_rate_limiter()
 
 
+@pytest.fixture(autouse=True)
+def _never_use_a_real_llm(monkeypatch):
+    """A developer's real API key in .env must never make tests call a provider; tests opt in with a FakeLLM."""
+    import app.modules.training.llm as llm_module
+
+    monkeypatch.setattr(llm_module, "_llm", FakeLLM(available=False))
+
+
 class Who:
     id = uuid.uuid4()
 

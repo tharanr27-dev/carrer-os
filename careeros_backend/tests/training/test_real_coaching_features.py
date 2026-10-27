@@ -189,28 +189,24 @@ async def _mentor_session(client):
     return (await client.post(f"{M}/sessions")).json()["data"]["id"]
 
 
-async def test_mentor_without_an_ai_provider_says_so_and_gives_real_next_steps(client):
+async def test_mentor_without_an_ai_provider_gives_a_setup_message_and_real_suggestions(client):
+    """No fake chat: the send fails honestly (see test_mentor_ai.py); next steps come from a separate endpoint."""
     sid = await _mentor_session(client)
-    r = (await client.post(f"{M}/sessions/{sid}/message", json={"content": "How do I get a job?"})).json()["data"]
-    text = r["content"]
-    assert "not available" in text and "no AI provider" in text
-    assert "Handshake" not in text and "Enterprise Admin" not in text  # the old echo-gateway reply
-    assert "Upload your résumé" in text or "Complete your profile" in text  # derived from this student's (empty) data
+    r = await client.post(f"{M}/sessions/{sid}/message", json={"content": "How do I get a job?"})
+    assert r.status_code == 503 and "GROQ_API_KEY" in r.text
+    assert "Handshake" not in r.text and "Enterprise Admin" not in r.text  # the old echo-gateway reply
+    titles = [i["title"] for i in (await client.get(f"{M}/suggestions")).json()["data"]]
+    assert any("résumé" in t or "profile" in t for t in titles)  # derived from this student's (empty) data
 
 
-async def test_mentor_with_a_provider_uses_it_and_falls_back_when_it_fails(client):
+async def test_mentor_with_a_provider_uses_it(client):
     sid = await _mentor_session(client)
     with patch("app.modules.training.llm.get_llm", return_value=FakeLLM(["Start with one project and write its README."])) as g:
         r = (await client.post(f"{M}/sessions/{sid}/message", json={"content": "What should I build?"})).json()["data"]
     assert r["content"] == "Start with one project and write its README."
     llm = g.return_value
     assert llm.calls[0]["messages"][-1] == {"role": "user", "content": "What should I build?"}
-    assert "never invent" in llm.calls[0]["system"]
-    from app.modules.training.llm import LLMUnavailable
-
-    with patch("app.modules.training.llm.get_llm", return_value=FakeLLM([LLMUnavailable("down")])):
-        r2 = (await client.post(f"{M}/sessions/{sid}/message", json={"content": "And then?"})).json()["data"]
-    assert "not available" in r2["content"]
+    assert "Never invent" in llm.calls[0]["system"]
 
 
 @pytest.mark.parametrize("content", ["", "x" * 4001])
