@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useMentorStore } from "@/store/useMentorStore";
-import { MessageSquare, X, Send, Sparkles, Plus, Minimize2 } from "lucide-react";
+import { MessageSquare, X, Sparkles, Plus, Minimize2 } from "lucide-react";
+import { MentorComposer, MentorError, MentorSetupNotice, MentorSuggestions } from "./mentor-chat-parts";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,7 +14,7 @@ export function FloatingMentor() {
     messages,
     isTyping,
     isLoadingHistory,
-    error,
+    aiAvailable,
     suggestedPrompts,
     toggleOpen,
     loadHistory,
@@ -21,7 +22,6 @@ export function FloatingMentor() {
     newConversation,
   } = useMentorStore();
 
-  const [input, setInput] = React.useState("");
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   // Restore the conversation the first time the panel opens.
@@ -32,14 +32,6 @@ export function FloatingMentor() {
   React.useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
-
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    const text = input.trim();
-    if (!text) return;
-    setInput("");
-    await sendMessage(text);
-  };
 
   if (widgetHidden) return null;
 
@@ -78,11 +70,11 @@ export function FloatingMentor() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col">
+            <div role="log" aria-live="polite" aria-label="Conversation with the AI Mentor" className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col">
               {isLoadingHistory && <p className="text-xs text-muted-foreground">Loading conversation…</p>}
               {!isLoadingHistory && messages.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Hi, I&apos;m your CareerOS AI Mentor. Ask me about your resume, skills, interviews, or career path.
+                  Hi, I&apos;m your CareerOS AI Mentor. Ask me about programming, interviews, your resume, or your career path.
                 </p>
               )}
               {messages.map((msg) => (
@@ -96,7 +88,8 @@ export function FloatingMentor() {
                   )}
                 >
                   <div className="font-semibold text-[10px] mb-1 opacity-70">{msg.sender === "ai" ? "AI Mentor" : "You"}</div>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                  {msg.failed && <div className="mt-1 text-[10px] text-destructive">Not answered</div>}
                 </div>
               ))}
 
@@ -107,22 +100,21 @@ export function FloatingMentor() {
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               )}
-              {error && (
-                <div role="alert" className="text-[11px] text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-2">
-                  {error}
-                </div>
-              )}
+              <MentorSetupNotice compact />
+              <MentorError compact />
               <div ref={scrollRef} />
             </div>
 
             {messages.length === 0 && !isLoadingHistory && (
               <div className="p-3 border-t border-border bg-card space-y-2">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Suggested Prompts</span>
+                <MentorSuggestions compact />
+                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Example questions</span>
                 <div className="flex flex-col gap-1.5 max-h-24 overflow-y-auto">
                   {suggestedPrompts.map((p) => (
                     <button
                       key={p}
                       onClick={() => void sendMessage(p)}
+                      disabled={aiAvailable === false || isTyping}
                       className="text-left text-[10px] px-2.5 py-1.5 rounded-md border border-muted bg-muted/40 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all cursor-pointer leading-tight truncate"
                     >
                       {p}
@@ -132,25 +124,9 @@ export function FloatingMentor() {
               </div>
             )}
 
-            <form onSubmit={handleSend} className="p-3 border-t border-border bg-muted/40 dark:bg-slate-950/20">
-              <div className="flex items-center border border-border rounded-xl bg-card overflow-hidden focus-within:ring-1 focus-within:ring-ring dark:bg-slate-950/50">
-                <input
-                  type="text"
-                  placeholder="Message CareerOS AI..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  className="flex-1 bg-transparent px-3 py-2 text-xs outline-hidden placeholder:text-muted-foreground"
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isTyping}
-                  aria-label="Send message"
-                  className="p-2 bg-primary text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </form>
+            <div className="p-3 border-t border-border bg-muted/40 dark:bg-slate-950/20">
+              <MentorComposer compact />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

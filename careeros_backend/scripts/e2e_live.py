@@ -182,10 +182,16 @@ def main():
     # ── mentor ───────────────────────────────────────────────────────────────
     expect("GET /mentor/sessions/latest (none) -> 404", student.get("/mentor/sessions/latest"), 404)
     ms = expect("POST /mentor/sessions", student.post("/mentor/sessions"), 200).json()["data"]
-    msg = expect("POST /mentor/sessions/{id}/message", student.post(f"/mentor/sessions/{ms['id']}/message", json={"content": "How do I improve my resume?"}), 200).json()["data"]
-    check("mentor reply has content", bool(msg["content"]) and msg["role"] == "AI")
-    latest = student.get("/mentor/sessions/latest").json()["data"]
-    check("GET /mentor/sessions/latest restores history", latest["id"] == ms["id"] and len(latest["messages"]) >= 2)
+    status = expect("GET /mentor/status", student.get("/mentor/status"), 200).json()["data"]
+    expect("GET /mentor/suggestions", student.get("/mentor/suggestions"), 200)
+    mresp = student.post(f"/mentor/sessions/{ms['id']}/message", json={"content": "How do I improve my resume?"})
+    if status["ai_available"]:
+        msg = expect("POST /mentor/sessions/{id}/message (real provider)", mresp, 200).json()["data"]
+        check("mentor reply has content", bool(msg["content"]) and msg["role"] == "AI")
+        latest = student.get("/mentor/sessions/latest").json()["data"]
+        check("GET /mentor/sessions/latest restores history", latest["id"] == ms["id"] and len(latest["messages"]) >= 2)
+    else:
+        expect("mentor without an AI provider -> 503 setup message, nothing saved", mresp, 503)
     expect("mentor message other user's session -> 403", other.post(f"/mentor/sessions/{ms['id']}/message", json={"content": "hi"}), 403)
     expect("mentor message missing content -> 422", student.post(f"/mentor/sessions/{ms['id']}/message", json={}), 422)
     g = expect("POST /mentor/goals", student.post("/mentor/goals", json={"title": "Land a backend role", "milestones": [{"title": "Finish roadmap"}]}), 200).json()["data"]

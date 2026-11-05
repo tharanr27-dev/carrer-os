@@ -9,9 +9,11 @@ import { ProgressHistory, RoadmapHome } from "./home";
 import { RoundPractice } from "./round-practice";
 import { MockSetup, ResumeProjects } from "./resume-mock";
 import { AttemptRunner } from "./runner";
+import { RoleTraining } from "./role-training";
 
 export const PREP_TABS = [
   { value: "roadmap", label: "My Roadmap" },
+  { value: "role", label: "Role Training" },
   { value: "aptitude", label: "Aptitude" },
   { value: "technical", label: "Technical" },
   { value: "coding", label: "Coding" },
@@ -96,6 +98,9 @@ export function InterviewPreparationView({ tab, onTabChange }: { tab: string; on
           <div className="pt-4">
             <TabsContent value="roadmap">
               <RoadmapHome meta={meta.data} onAction={runAction} onOpenAttempt={openAttempt} onGo={onTabChange} />
+            </TabsContent>
+            <TabsContent value="role">
+              <RoleTraining />
             </TabsContent>
             <TabsContent value="aptitude">
               <RoundPractice {...common} rounds={["aptitude"]} allowExam intro="Quantitative, logical, verbal and technical-screening MCQs. Practice mode explains each answer immediately; exam mode is timed and reveals answers after you submit." />

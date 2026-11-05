@@ -1,10 +1,27 @@
 from typing import List, Optional
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4, BaseModel, Field, field_validator
 
 
 class ChatMessageRequest(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("content")
+    @classmethod
+    def not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Message cannot be empty")
+        return v
+
+
+class MentorStatusResponse(BaseModel):
+    ai_available: bool
+
+
+class MentorSuggestion(BaseModel):
+    title: str
+    reason: str
 
 
 class MentorMessageResponse(BaseModel):

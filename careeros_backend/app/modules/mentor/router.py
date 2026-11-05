@@ -13,6 +13,8 @@ from app.modules.mentor.schemas import (
     ChatMessageRequest,
     MentorMessageResponse,
     MentorSessionResponse,
+    MentorStatusResponse,
+    MentorSuggestion,
 )
 from app.modules.mentor.service import MentorService
 
@@ -43,6 +45,29 @@ async def get_latest_session(
         raise HTTPException(status_code=404, detail="No mentor conversation yet")
     req_id = getattr(request.state, "request_id", None)
     return success_response(data=MentorSessionResponse.model_validate(session), request_id=req_id)
+
+
+@router.get("/status", response_model=APIResponse[MentorStatusResponse])
+async def mentor_status(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Whether a real AI provider is configured (never reveals keys or provider details)."""
+    req_id = getattr(request.state, "request_id", None)
+    return success_response(data=MentorStatusResponse(**await MentorService(db).status()), request_id=req_id)
+
+
+@router.get("/suggestions", response_model=APIResponse[list[MentorSuggestion]])
+async def mentor_suggestions(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Next steps from the user's own saved activity; separate from chat answers."""
+    req_id = getattr(request.state, "request_id", None)
+    items = await MentorService(db).suggestions(current_user.id)
+    return success_response(data=[MentorSuggestion(**i) for i in items], request_id=req_id)
 
 
 @router.get("/goals", response_model=APIResponse[list[CareerGoalResponse]])

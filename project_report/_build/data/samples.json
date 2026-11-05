@@ -1,0 +1,345 @@
+[
+ {
+  "title": "Register a student",
+  "method": "POST",
+  "path": "/api/v1/auth/register",
+  "request": {
+   "email": "sample_74ff02@example.com",
+   "password": "<password>"
+  },
+  "status": 201,
+  "response": {
+   "id": "787e873e-517f-4ca1-8a4a-9ed4a6a605d6",
+   "email": "sample_74ff02@example.com",
+   "is_active": true,
+   "is_verified": true
+  }
+ },
+ {
+  "title": "Log in",
+  "method": "POST",
+  "path": "/api/v1/auth/login",
+  "request": {
+   "email": "sample_74ff02@example.com",
+   "password": "<password>"
+  },
+  "status": 200,
+  "response": {
+   "access_token": "<redacted>",
+   "refresh_token": "<redacted>",
+   "token_type": "bearer"
+  }
+ },
+ {
+  "title": "Search the role catalog",
+  "method": "GET",
+  "path": "/api/v1/training/roles?q=prompt&limit=2",
+  "request": null,
+  "status": 200,
+  "response": {
+   "success": true,
+   "message": "Success",
+   "data": {
+    "roles": [
+     {
+      "title": "Prompt Engineer",
+      "family": "Data & AI",
+      "aliases": [
+       "Prompt Designer",
+       "..."
+      ],
+      "topics": [
+       {
+        "slug": "prompt-engineering",
+        "label": "Prompt Engineering"
+       },
+       "..."
+      ],
+      "available_questions": 16
+     }
+    ],
+    "query": "prompt",
+    "exact_match": false,
+    "custom_allowed": true,
+    "recent": [],
+    "ai_available": true
+   },
+   "errors": null
+  }
+ },
+ {
+  "title": "Resolve a custom job title",
+  "method": "POST",
+  "path": "/api/v1/training/roles/resolve",
+  "request": {
+   "title": "Cloud Security Specialist"
+  },
+  "status": 200,
+  "response": {
+   "success": true,
+   "message": "Success",
+   "data": {
+    "title": "Cloud Security Specialist",
+    "key": "cloud-engineer-security",
+    "match": "similar",
+    "matched_title": "Cloud Engineer",
+    "family": "Cloud & Security",
+    "mapped": true,
+    "level_hint": null,
+    "notes": [
+     "Matched to the closest known role: Cloud Engineer."
+    ],
+    "topics": [
+     {
+      "slug": "cybersecurity",
+      "label": "Cybersecurity Fundamentals",
+      "available": 6
+     },
+     "..."
+    ],
+    "available_questions": 24,
+    "unseen_questions": 24,
+    "ai_available": true,
+    "can_start": true,
+    "message": null
+   },
+   "errors": null
+  }
+ },
+ {
+  "title": "Start a role-based session",
+  "method": "POST",
+  "path": "/api/v1/training/role-sessions",
+  "request": {
+   "role_title": "Cloud Security Specialist",
+   "count": 5,
+   "difficulty": null,
+   "topics": [],
+   "focus": "mixed",
+   "generate": false
+  },
+  "status": 201,
+  "response": {
+   "success": true,
+   "message": "Success",
+   "data": {
+    "id": "dd91d540-8fb2-4993-9c9a-dabef12e4062",
+    "status": "IN_PROGRESS",
+    "mode": "role",
+    "role": {
+     "title": "Cloud Security Specialist",
+     "key": "cloud-engineer-security",
+     "matched_title": "Cloud Engineer",
+     "mapped": true,
+     "topics": [
+      {
+       "slug": "cybersecurity",
+       "label": "Cybersecurity Fundamentals"
+      },
+      "..."
+     ]
+    },
+    "level": "fresher",
+    "difficulty": "easy",
+    "requested": {
+     "difficulty": null,
+     "topics": [],
+     "count": 5,
+     "focus": "mixed",
+     "generate": false
+    },
+    "focus": "mixed",
+    "plan": {
+     "notes": [
+      "Matched to the closest known role: Cloud Engineer.",
+      "..."
+     ],
+     "allocation": [
+      {
+       "topic": "cybersecurity",
+       "label": "Cybersecurity Fundamentals",
+       "count": 2,
+       "reason": "not practised for this role yet"
+      },
+      "..."
+     ],
+     "fresh": 5,
+     "repeats": 0,
+     "workplace": 1,
+     "generation": {
+      "requested": 0,
+      "accepted": 0,
+      "rejected": 0,
+      "used": false
+     }
+    },
+    "notices": [],
+    "started_at": "2026-10-31T04:45:13.700433+00:00",
+    "ended_at": null,
+    "total_questions": 5,
+    "answered": 0,
+    "next_position": 1,
+    "items": [
+     {
+      "id": "d0e2988f-41d0-4038-88ec-60fcced2cf59",
+      "position": 1,
+      "topic": "networks",
+      "topic_label": "Computer Networks",
+      "difficulty": "easy",
+      "qtype": "mcq",
+      "kind": "foundational",
+      "source": "curated",
+      "review_status": "reviewed",
+      "prompt": "Which protocol provides reliable, connection-oriented delivery?",
+      "options": [
+       "UDP",
+       "..."
+      ],
+      "max_marks": 1.0,
+      "answered": false,
+      "is_repeat": false,
+      "is_workplace": false,
+      "result": null
+     },
+     "..."
+    ],
+    "summary": null,
+    "ai_available": true,
+    "scoring_rules": [
+     "Multiple-choice questions are worth 1 mark and are graded on the server by exact comparison with the answer key.",
+     "..."
+    ]
+   },
+   "errors": null
+  }
+ },
+ {
+  "title": "Submit an answer (instant evaluation)",
+  "method": "POST",
+  "path": "/api/v1/training/role-sessions/{session_id}/answer",
+  "request": {
+   "item_id": "<item id>",
+   "index": 0
+  },
+  "status": 200,
+  "response": {
+   "success": true,
+   "message": "Success",
+   "data": {
+    "saved": true,
+    "already_answered": false,
+    "item": {
+     "id": "d0e2988f-41d0-4038-88ec-60fcced2cf59",
+     "position": 1,
+     "topic": "networks",
+     "topic_label": "Computer Networks",
+     "difficulty": "easy",
+     "qtype": "mcq",
+     "kind": "foundational",
+     "source": "curated",
+     "review_status": "reviewed",
+     "prompt": "Which protocol provides reliable, connection-oriented delivery?",
+     "options": [
+      "UDP",
+      "..."
+     ],
+     "max_marks": 1.0,
+     "answered": true,
+     "is_repeat": false,
+     "is_workplace": false,
+     "result": {
+      "status": "incorrect",
+      "status_label": "Incorrect",
+      "marks": 0.0,
+      "max_marks": 1.0,
+      "score": 0.0,
+      "method": "objective",
+      "disclaimer": null,
+      "explanation": "TCP uses a handshake, acknowledgements and retransmission.",
+      "got_right": [],
+      "missing": [
+       "You chose \"UDP\". The correct answer is \"TCP\"."
+      ],
+      "suggestion": "Revise this concept: TCP uses a handshake, acknowledgements and retransmission.",
+      "your_answer": {
+       "index": 0
+      },
+      "correct_index": 1,
+      "correct_answer": "TCP"
+     }
+    }
+   },
+   "errors": null
+  }
+ },
+ {
+  "title": "Finish the session (summary fields)",
+  "method": "POST",
+  "path": "/api/v1/training/role-sessions/{session_id}/finish",
+  "request": null,
+  "status": 200,
+  "response": {
+   "success": true,
+   "data": {
+    "status": "COMPLETED",
+    "summary": {
+     "total_questions": 5,
+     "answered": 1,
+     "unanswered": 4,
+     "correct": 0,
+     "partial": 0,
+     "incorrect": 1,
+     "marks_earned": 0.0,
+     "marks_available": 7.0,
+     "percentage": 0.0
+    }
+   }
+  }
+ },
+ {
+  "title": "Send a message to the AI Mentor",
+  "method": "POST",
+  "path": "/api/v1/mentor/sessions/{session_id}/message",
+  "request": {
+   "content": "What is a REST API? Answer in one sentence."
+  },
+  "status": 200,
+  "response": {
+   "success": true,
+   "message": "Success",
+   "data": {
+    "id": "755292cc-d6a6-4bcf-8e5e-a84c41d4f468",
+    "role": "AI",
+    "content": "A REST API is a web service that follows the principles of Representational State Transfer, allowing clients to interact with resources via standard H..."
+   },
+   "errors": null
+  }
+ },
+ {
+  "title": "Validation error (blank message)",
+  "method": "POST",
+  "path": "/api/v1/mentor/sessions/{session_id}/message",
+  "request": {
+   "content": "   "
+  },
+  "status": 422,
+  "response": {
+   "success": false,
+   "message": "Validation Failed",
+   "data": null,
+   "errors": [
+    "content: Value error, Message cannot be empty"
+   ]
+  }
+ },
+ {
+  "title": "Request without a token",
+  "method": "GET",
+  "path": "/api/v1/mentor/status",
+  "request": null,
+  "status": 401,
+  "response": {
+   "detail": "Not authenticated"
+  }
+ }
+]

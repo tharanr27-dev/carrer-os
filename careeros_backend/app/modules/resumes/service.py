@@ -64,6 +64,21 @@ class ResumeService:
 
         return resume
 
+    async def process_existing_file(self, resume: Resume, file_content: bytes) -> ResumeAnalysis:
+        return await execute_resume_pipeline(
+            session=self.session,
+            repository=self.repository,
+            audit_service=self.audit_service,
+            ai_analyzer=self.ai_analyzer,
+            user_id=resume.user_id,
+            resume_id=resume.id,
+            file_content=file_content,
+            s3_key=resume.s3_key,
+            file_name=resume.file_name,
+            content_type=resume.content_type or "application/pdf",
+            save_file=False,
+        )
+
     async def _async_pipeline_isolated(
         self,
         user_id: uuid.UUID,
@@ -81,67 +96,138 @@ class ResumeService:
             try:
                 resume = await repository.get_resume_by_id(resume_id)
                 content_type = resume.content_type if resume else "application/pdf"
-
-                # 1. Store the original privately on local disk (served only by the authenticated download route).
-                await get_file_storage().save(s3_key, file_content)
-
-                await audit_service.log_action(
+                await execute_resume_pipeline(
+                    session=session,
+                    repository=repository,
+                    audit_service=audit_service,
+                    ai_analyzer=ai_analyzer,
                     user_id=user_id,
-                    action="RESUME_UPLOADED",
-                    entity_type="Resume",
-                    entity_id=str(resume_id),
-                )
-
-                # 2. Real text extraction (PDF via pypdf, DOCX via the document XML).
-                extraction = extract_text(content_type, file_content)
-
-                # 3. Rule-based analysis against the student's target role (set in Interview Prep), if any.
-                from app.modules.training.models import TrainingProfile
-
-                target_role = (
-                    await session.execute(
-                        select(TrainingProfile.target_role).where(TrainingProfile.user_id == user_id)
-                    )
-                ).scalar_one_or_none()
-                ai_result = await ai_analyzer.analyze_resume_text(
-                    extraction.text, target_role=target_role, warnings=extraction.warnings
-                )
-
-                # 4. Persist derived data only. The raw résumé text is deliberately NOT stored in the database.
-                await repository.save_metadata(
-                    ResumeMetadata(
-                        resume_id=resume_id,
-                        parsed_content={
-                            "method": extraction.method,
-                            "pages": extraction.pages,
-                            "word_count": len(extraction.text.split()),
-                            "text_extracted": extraction.ok,
-                        },
-                        extracted_skills={"skills": ai_result.extracted_skills, "method": "text_match_v1"},
-                    )
-                )
-                analysis = ResumeAnalysis(
                     resume_id=resume_id,
-                    ats_score=ai_result.ats_score,
-                    grammar_score=ai_result.grammar_score,
-                    quality_score=ai_result.quality_score,
-                    keyword_analysis=ai_result.keyword_analysis,
+                    file_content=file_content,
+                    s3_key=s3_key,
+                    file_name=file_name,
+                    content_type=content_type,
+                    save_file=True,
                 )
-                suggestions = [
-                    ResumeSuggestion(
-                        category=sug.category,
-                        suggestion_text=sug.suggestion_text,
-                        impact=sug.impact,
-                    )
-                    for sug in ai_result.suggestions
-                ]
-                await repository.save_analysis(analysis, suggestions)
-
-                await repository.update_resume_status(resume_id, "COMPLETED")
-
-                redis = await get_redis()
-                await redis.delete(f"user:{user_id}:resumes")
-
             except Exception:
                 logger.exception("Resume pipeline failed for resume %s", resume_id)
-                await repository.update_resume_status(resume_id, "FAILED")
+                try:
+                    await session.rollback()
+                    await repository.update_resume_status(resume_id, "FAILED")
+                except Exception:
+                    logger.exception("Failed to mark resume %s as FAILED", resume_id)
+
+
+async def _resolve_target_role(session: AsyncSession, user_id: uuid.UUID) -> str | None:
+    try:
+        async with session.begin_nested():
+            from app.modules.training.models import TrainingProfile
+
+            res = await session.execute(
+                select(TrainingProfile.target_role).where(TrainingProfile.user_id == user_id)
+            )
+            val = res.scalar_one_or_none()
+            if val:
+                return val
+    except Exception:
+        pass
+
+    try:
+        async with session.begin_nested():
+            from app.modules.roadmaps.models import LearningRoadmap
+
+            res = await session.execute(
+                select(LearningRoadmap.target_role).where(LearningRoadmap.user_id == user_id).limit(1)
+            )
+            val = res.scalar_one_or_none()
+            if val:
+                return val
+    except Exception:
+        pass
+
+    try:
+        async with session.begin_nested():
+            from app.modules.profile.models import Profile
+
+            res = await session.execute(
+                select(Profile.headline).where(Profile.user_id == user_id).limit(1)
+            )
+            val = res.scalar_one_or_none()
+            if val:
+                return val
+    except Exception:
+        pass
+
+    return None
+
+
+async def execute_resume_pipeline(
+    session: AsyncSession,
+    repository: ResumeRepository,
+    audit_service: AuditService,
+    ai_analyzer: AIResumeAnalyzer,
+    user_id: uuid.UUID,
+    resume_id: uuid.UUID,
+    file_content: bytes,
+    s3_key: str,
+    file_name: str,
+    content_type: str = "application/pdf",
+    save_file: bool = True,
+) -> ResumeAnalysis:
+    if save_file:
+        await get_file_storage().save(s3_key, file_content)
+
+    try:
+        await audit_service.log_action(
+            user_id=user_id,
+            action="RESUME_UPLOADED",
+            entity_type="Resume",
+            entity_id=str(resume_id),
+        )
+    except Exception:
+        logger.debug("Failed to log audit for resume upload %s", resume_id)
+
+    extraction = extract_text(content_type, file_content)
+    target_role = await _resolve_target_role(session, user_id)
+    ai_result = await ai_analyzer.analyze_resume_text(
+        extraction.text, target_role=target_role, warnings=extraction.warnings
+    )
+
+    await repository.save_metadata(
+        ResumeMetadata(
+            resume_id=resume_id,
+            parsed_content={
+                "method": extraction.method,
+                "pages": extraction.pages,
+                "word_count": len(extraction.text.split()),
+                "text_extracted": extraction.ok,
+            },
+            extracted_skills={"skills": ai_result.extracted_skills, "method": "text_match_v1"},
+        )
+    )
+    analysis = ResumeAnalysis(
+        resume_id=resume_id,
+        ats_score=ai_result.ats_score,
+        grammar_score=ai_result.grammar_score,
+        quality_score=ai_result.quality_score,
+        keyword_analysis=ai_result.keyword_analysis,
+    )
+    suggestions = [
+        ResumeSuggestion(
+            category=sug.category,
+            suggestion_text=sug.suggestion_text,
+            impact=sug.impact,
+        )
+        for sug in ai_result.suggestions
+    ]
+    saved_analysis = await repository.save_analysis(analysis, suggestions)
+    await repository.update_resume_status(resume_id, "COMPLETED")
+
+    try:
+        redis = await get_redis()
+        await redis.delete(f"user:{user_id}:resumes")
+    except Exception:
+        pass
+
+    return saved_analysis
+

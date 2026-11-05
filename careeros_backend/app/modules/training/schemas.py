@@ -95,3 +95,51 @@ class ProfileUpdate(BaseModel):
     def _role(cls, v):
         return clean_text(v, 60) if v else v
 
+
+
+class RoleSessionCreate(BaseModel):
+    """Start a role-based training session for ANY job title (not limited to a catalog)."""
+
+    role_title: str = Field(min_length=2, max_length=60)
+    level: Optional[Literal["fresher", "junior", "mid"]] = None
+    difficulty: Optional[Difficulty] = None
+    topics: List[str] = Field(default_factory=list, max_length=8)
+    count: int = Field(default=10, ge=3, le=30)
+    focus: Literal["mixed", "weak"] = "mixed"
+    generate: bool = True
+
+    @field_validator("role_title")
+    @classmethod
+    def _title(cls, v):
+        return clean_text(v, 60)
+
+    @field_validator("topics")
+    @classmethod
+    def _topics(cls, v):
+        return [t for t in (clean_text(x, 40) for x in v) if t]
+
+
+class RoleResolveRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=60)
+
+    @field_validator("title")
+    @classmethod
+    def _t(cls, v):
+        return clean_text(v, 60)
+
+
+class RoleAnswer(BaseModel):
+    item_id: str
+    index: Optional[int] = Field(default=None, ge=0, le=9)
+    text: Optional[str] = Field(default=None, max_length=6000)
+    time_taken_sec: Optional[float] = Field(default=None, ge=0, le=7200)
+
+    @field_validator("text")
+    @classmethod
+    def _clean(cls, v):
+        return clean_text(v, 6000) if v is not None else v
+
+
+class RoleAgain(BaseModel):
+    focus: Literal["mixed", "weak"] = "mixed"
+    count: Optional[int] = Field(default=None, ge=3, le=30)

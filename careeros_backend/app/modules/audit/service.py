@@ -1,9 +1,13 @@
+import logging
 import uuid
 from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.modules.auth.models  # noqa: F401
 from app.modules.audit.models import AuditLog
+
+logger = logging.getLogger("careeros")
 
 
 class AuditService:
@@ -21,7 +25,7 @@ class AuditService:
         *,
         action: Optional[str] = None,
         user_id: Optional[uuid.UUID] = None,
-    ) -> AuditLog:
+    ) -> Optional[AuditLog]:
         resolved_action = action
         resolved_user_id = user_id
 
@@ -37,15 +41,24 @@ class AuditService:
         elif resolved_user_id is None and isinstance(arg1, uuid.UUID):
             resolved_user_id = arg1
 
-        audit_log = AuditLog(
-            user_id=resolved_user_id,
-            action=resolved_action or "UNKNOWN",
-            entity_type=entity_type,
-            entity_id=str(entity_id) if entity_id is not None else None,
-            metadata_json=metadata_json,
-            ip_address=ip_address,
-        )
-        self.session.add(audit_log)
-        await self.session.commit()
-        await self.session.refresh(audit_log)
-        return audit_log
+        try:
+            audit_log = AuditLog(
+                user_id=resolved_user_id,
+                action=resolved_action or "UNKNOWN",
+                entity_type=entity_type,
+                entity_id=str(entity_id) if entity_id is not None else None,
+                metadata_json=metadata_json,
+                ip_address=ip_address,
+            )
+            async with self.session.begin_nested():
+                self.session.add(audit_log)
+                await self.session.flush()
+            await self.session.commit()
+            return audit_log
+        except Exception as e:
+            logger.warning("Audit logging skipped due to error: %s", e)
+            try:
+                await self.session.rollback()
+            except Exception:
+                pass
+            return None

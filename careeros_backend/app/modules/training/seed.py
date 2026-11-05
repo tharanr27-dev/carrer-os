@@ -9,6 +9,7 @@ from app.modules.training.bank.aptitude import APTITUDE
 from app.modules.training.bank.behavioural import COMMUNICATION, HR, MANAGERIAL
 from app.modules.training.bank.catalog import TOPIC_INDEX
 from app.modules.training.bank.coding import CODING
+from app.modules.training.bank.roles import ROLE_PACK
 from app.modules.training.bank.technical import TECHNICAL
 from app.modules.training.models import TrainingQuestion
 from app.modules.training.textutils import fingerprint
@@ -16,7 +17,7 @@ from app.modules.training.textutils import fingerprint
 
 def all_seed() -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
-    for q in [*APTITUDE, *TECHNICAL, *CODING, *COMMUNICATION, *HR, *MANAGERIAL]:
+    for q in [*APTITUDE, *TECHNICAL, *ROLE_PACK, *CODING, *COMMUNICATION, *HR, *MANAGERIAL]:
         meta = TOPIC_INDEX[f"{q['round']}:{q['topic']}"]  # KeyError => bad seed topic (caught by tests)
         row = dict(q)
         row["category"] = meta["group"]
@@ -56,6 +57,12 @@ async def ensure_seed(db: AsyncSession) -> int:
     )
     new = [TrainingQuestion(**r) for r in seed if r["fingerprint"] not in existing]
     if new:
-        db.add_all(new)
-    await db.commit()
+        chunk_size = 25
+        for i in range(0, len(new), chunk_size):
+            chunk = new[i : i + chunk_size]
+            db.add_all(chunk)
+            await db.commit()
+    else:
+        await db.commit()
     return len(new)
+
