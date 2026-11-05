@@ -138,11 +138,18 @@ export function AnalyticsView() {
               <EmptyState title="No roadmap yet" description="Generate one in the Training Academy." />
             ) : mounted ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={moduleProgress}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="name" fontSize={11} />
-                  <YAxis domain={[0, 100]} fontSize={11} />
-                  <Tooltip />
+                <BarChart data={moduleProgress} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border opacity-60" />
+                  <XAxis dataKey="name" fontSize={11} tick={{ fill: "currentColor" }} className="text-muted-foreground" />
+                  <YAxis domain={[0, 100]} fontSize={11} tick={{ fill: "currentColor" }} className="text-muted-foreground" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      borderColor: "hsl(var(--border))",
+                      borderRadius: "0.5rem",
+                      color: "hsl(var(--card-foreground))",
+                    }}
+                  />
                   <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -162,11 +169,18 @@ export function AnalyticsView() {
               <EmptyState title="No recommendations yet" description="Refresh recommendations from your dashboard." />
             ) : mounted ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byCategory}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="category" fontSize={11} />
-                  <YAxis allowDecimals={false} fontSize={11} />
-                  <Tooltip />
+                <BarChart data={byCategory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border opacity-60" />
+                  <XAxis dataKey="category" fontSize={11} tick={{ fill: "currentColor" }} className="text-muted-foreground" />
+                  <YAxis allowDecimals={false} fontSize={11} tick={{ fill: "currentColor" }} className="text-muted-foreground" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      borderColor: "hsl(var(--border))",
+                      borderRadius: "0.5rem",
+                      color: "hsl(var(--card-foreground))",
+                    }}
+                  />
                   <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

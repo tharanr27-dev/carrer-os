@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
@@ -21,6 +22,7 @@ from app.modules.resumes.upload_validation import (
     validate_resume_upload,
 )
 
+logger = logging.getLogger("careeros")
 router = APIRouter()
 
 
@@ -33,10 +35,27 @@ async def list_my_resumes(
     """The current user's uploaded resumes, newest first."""
     service = ResumeService(db)
     resumes = await service.repository.list_resumes_for_user(current_user.id)
+
+    for r in resumes:
+        if r.status in ("PROCESSING", "FAILED"):
+            analysis = await service.repository.get_latest_analysis(r.id)
+            if analysis:
+                r.status = "COMPLETED"
+                await service.repository.update_resume_status(r.id, "COMPLETED")
+            elif r.s3_key:
+                try:
+                    content = await get_file_storage().read(r.s3_key)
+                    if content:
+                        await service.process_existing_file(r, content)
+                        r.status = "COMPLETED"
+                except Exception:
+                    logger.debug("Failed auto-healing in list_my_resumes for resume %s", r.id)
+
     req_id = getattr(request.state, "request_id", None)
     return success_response(
         data=[ResumeSummaryResponse.model_validate(r) for r in resumes], request_id=req_id
     )
+
 
 
 @router.post("/upload", response_model=APIResponse[ResumeUploadResponse], status_code=202)
@@ -84,6 +103,15 @@ async def get_resume_analysis(
         raise HTTPException(status_code=403, detail="Access denied")
 
     analysis = await service.repository.get_latest_analysis(resume_id)
+    if not analysis and resume.status in ("PROCESSING", "FAILED") and resume.s3_key:
+        try:
+            content = await get_file_storage().read(resume.s3_key)
+            if content:
+                logger.info("Auto-recovering analysis for resume %s from storage", resume_id)
+                analysis = await service.process_existing_file(resume, content)
+        except Exception:
+            logger.exception("Failed to auto-recover analysis for resume %s", resume_id)
+
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not ready or failed.")
 

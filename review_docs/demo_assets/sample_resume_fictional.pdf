@@ -1,0 +1,49 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 901 >>
+stream
+BT /F1 10 Tf 40 800 Td 12 TL
+(Priya Raman) Tj T*
+(priya.raman@example.com | +91 98765 43210 | github.com/priyaraman) Tj T*
+(Summary) Tj T*
+(Final-year Computer Science student interested in backend development.) Tj T*
+(Education) Tj T*
+(B.E. Computer Science, Anna University, 2026, CGPA 8.4) Tj T*
+(Skills) Tj T*
+(Python, FastAPI, PostgreSQL, Docker, Git, REST APIs, SQL, Linux) Tj T*
+(Projects) Tj T*
+(- Built a student attendance API with FastAPI and PostgreSQL serving 300 users) Tj T*
+(- Implemented JWT authentication and reduced login latency by 35%) Tj T*
+(- Designed a Docker based deployment and automated tests with pytest) Tj T*
+(- Developed a React dashboard that visualises attendance for 12 classes) Tj T*
+(Experience) Tj T*
+(- Responsible for fixing bugs during a 2 month internship at Acme Labs) Tj T*
+(- Led a team of 4 students to deliver a hackathon prototype in 24 hours) Tj T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1263
+%%EOF

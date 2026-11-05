@@ -2,6 +2,7 @@ from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.db.base import AuditableBase
+import app.modules.auth.models  # noqa: F401
 
 
 class AuditLog(AuditableBase):
@@ -13,3 +14,4 @@ class AuditLog(AuditableBase):
     entity_id = Column(String, nullable=True)
     metadata_json = Column(JSONB, nullable=True)
     ip_address = Column(String, nullable=True)
+

@@ -295,3 +295,32 @@ def test_xai_key_selects_grok_and_anthropic_is_the_fallback(monkeypatch):
     assert mod._build_llm().provider == "anthropic" and mod._build_llm().available
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", None)
     assert not mod._build_llm().available
+
+
+async def test_mentor_succeeds_even_when_training_or_optional_tables_are_missing(client):
+    from sqlalchemy import text
+
+    # Simulate missing training tables (e.g. unmigrated database)
+    async with client.sessionmaker() as s:
+        await s.execute(text("DROP TABLE IF EXISTS training_profiles;"))
+        await s.commit()
+
+    sid = await _sid(client)
+    llm = FakeLLM(["I am doing great, ready to help you!"])
+    r = await _send(client, sid, "hi", llm)
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["role"] == "AI"
+    assert data["content"] == "I am doing great, ready to help you!"
+
+    # Verify messages were saved in the session
+    rows = await _stored(client)
+    assert len(rows) == 2
+    assert rows[0].role == "USER" and rows[0].content == "hi"
+    assert rows[1].role == "AI" and rows[1].content == "I am doing great, ready to help you!"
+
+    # Verify suggestions endpoint also handles missing table gracefully
+    sug_res = await client.get(f"{M}/suggestions")
+    assert sug_res.status_code == 200
+    assert isinstance(sug_res.json()["data"], list)
+

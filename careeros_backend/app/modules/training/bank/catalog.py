@@ -94,6 +94,16 @@ ROUNDS: Dict[str, Dict[str, Any]] = {
                 ("rag", "RAG Concepts"),
                 ("ai-project", "AI Project Explanation"),
             ],
+            "Role Specializations": [
+                ("prompt-engineering", "Prompt Engineering"),
+                ("llm-safety", "LLM Safety and Evaluation"),
+                ("cybersecurity", "Cybersecurity Fundamentals"),
+                ("cloud-computing", "Cloud Computing"),
+                ("devops-practices", "CI/CD and DevOps Practices"),
+                ("ux-design", "UI/UX Design"),
+                ("qa-practices", "QA and Test Strategy"),
+                ("product-management", "Product Management"),
+            ],
         },
     },
     "coding": {

@@ -875,6 +875,195 @@ export interface TrainingAnswerResponse {
   follow_up?: TrainingItem | null;
 }
 
+// Role-based training (any job title)
+export type RoleLevel = "fresher" | "junior" | "mid";
+export type RoleStatus = "correct" | "partial" | "incorrect" | "manual_review" | "unanswered";
+export type RoleReviewFilter = "all" | RoleStatus;
+
+export interface RoleTopic {
+  slug: string;
+  label: string;
+  available?: number;
+}
+export interface RoleCatalogEntry {
+  title: string;
+  family: string;
+  aliases: string[];
+  topics: RoleTopic[];
+  available_questions: number;
+}
+export interface RoleSearchResult {
+  roles: RoleCatalogEntry[];
+  query: string;
+  exact_match: boolean;
+  custom_allowed: boolean;
+  recent: { title: string; key: string }[];
+  ai_available: boolean;
+}
+export interface RoleResolution {
+  title: string;
+  key: string;
+  match: "catalog" | "similar" | "keywords" | "none";
+  matched_title: string | null;
+  family: string | null;
+  mapped: boolean;
+  level_hint: RoleLevel | null;
+  notes: string[];
+  topics: RoleTopic[];
+  available_questions: number;
+  unseen_questions: number;
+  ai_available: boolean;
+  can_start: boolean;
+  message: string | null;
+}
+export interface RoleSessionCreate {
+  role_title: string;
+  level?: RoleLevel | null;
+  difficulty?: "easy" | "medium" | "hard" | null;
+  topics?: string[];
+  count?: number;
+  focus?: "mixed" | "weak";
+  generate?: boolean;
+}
+export interface RoleResult {
+  status: RoleStatus;
+  status_label: string;
+  marks: number | null;
+  max_marks: number | null;
+  score: number | null;
+  method: "objective" | "keyword_estimate" | "ai_estimate" | "manual" | null;
+  disclaimer: string | null;
+  explanation: string | null;
+  got_right: string[];
+  missing: string[];
+  suggestion: string | null;
+  your_answer: { index?: number; text?: string } | null;
+  correct_index?: number | null;
+  correct_answer?: string | null;
+  expected_concepts?: string[];
+  model_answer?: string | null;
+}
+export interface RoleItem {
+  id: string;
+  position: number;
+  topic: string;
+  topic_label: string;
+  difficulty: string;
+  qtype: "mcq" | "text";
+  kind: string | null;
+  source: string;
+  review_status: string;
+  prompt: string;
+  options: string[] | null;
+  max_marks: number | null;
+  answered: boolean;
+  is_repeat: boolean;
+  is_workplace: boolean;
+  result: RoleResult | null;
+}
+export interface RoleTopicScore {
+  topic: string;
+  label: string;
+  questions: number;
+  answered: number;
+  earned: number;
+  available: number;
+  pct: number | null;
+}
+export interface RoleSummary {
+  role_title: string;
+  difficulty: string | null;
+  level: string | null;
+  topics: string[];
+  total_questions: number;
+  answered: number;
+  unanswered: number;
+  correct: number;
+  partial: number;
+  incorrect: number;
+  manual_review: number;
+  marks_earned: number;
+  marks_available: number;
+  percentage: number | null;
+  by_topic: RoleTopicScore[];
+  strong_topics: string[];
+  weak_topics: string[];
+  revision: { topic: string; label: string; reason: string }[];
+  next: { improve_weak_available: boolean; weak_labels: string[] };
+  scoring_rules: string[];
+}
+export interface RoleSession {
+  id: string;
+  status: "IN_PROGRESS" | "COMPLETED";
+  role: { title: string; key: string; matched_title: string | null; mapped: boolean; topics: RoleTopic[] };
+  level: string | null;
+  difficulty: string | null;
+  focus: "mixed" | "weak" | null;
+  requested: { difficulty: string | null; topics: string[]; count: number; focus: string; generate: boolean } | null;
+  plan: {
+    notes: string[];
+    allocation: { topic: string; label: string; count: number; reason: string }[];
+    fresh: number;
+    repeats: number;
+    workplace: number;
+    generation: { requested: number; accepted: number; rejected: number; used: boolean };
+  } | null;
+  notices: string[];
+  started_at: string;
+  ended_at: string | null;
+  total_questions: number;
+  answered: number;
+  next_position: number | null;
+  items: RoleItem[];
+  summary: RoleSummary | null;
+  ai_available: boolean;
+  scoring_rules: string[];
+}
+export interface RoleAnswerBody {
+  item_id: string;
+  index?: number;
+  text?: string;
+  time_taken_sec?: number;
+}
+export interface RoleAnswerResponse {
+  saved: boolean;
+  already_answered: boolean;
+  item: RoleItem;
+}
+export interface RoleReview {
+  id: string;
+  filter: RoleReviewFilter;
+  counts: Record<"all" | RoleStatus, number>;
+  summary: RoleSummary | null;
+  items: RoleItem[];
+}
+export interface RoleProgress {
+  role: { title: string; key: string };
+  sessions_completed: number;
+  sessions_in_progress: number;
+  questions_answered: number;
+  average_percentage: number | null;
+  latest_percentage: number | null;
+  topics: { topic: string; label: string; answered: number; avg_pct: number }[];
+  weak_topics: { topic: string; label: string; answered: number; avg_pct: number }[];
+  strong_topics: { topic: string; label: string; answered: number; avg_pct: number }[];
+  stored_questions: number;
+  unseen_stored_questions: number;
+  ai_available: boolean;
+  note: string;
+}
+export interface RoleSessionRow {
+  id: string;
+  role_title: string;
+  status: "IN_PROGRESS" | "COMPLETED";
+  difficulty: string | null;
+  started_at: string;
+  ended_at: string | null;
+  total_questions: number;
+  answered: number;
+  percentage: number | null;
+}
+
 export interface MyApplication {
   id: string;
   job_id: string;
@@ -1194,6 +1383,21 @@ export const api = {
   trainingNext: (id: string, body: { generate?: boolean; count?: number; qtype?: "mcq" | "text" }) =>
     data<{ attempt: TrainingAttempt; added: TrainingItem[]; notices: string[] }>(`/training/attempts/${id}/next`, { method: "POST", body }),
   trainingFinish: (id: string) => data<TrainingAttempt>(`/training/attempts/${id}/finish`, { method: "POST" }),
+  // Role-based training
+  roleSearch: (q: string) => data<RoleSearchResult>("/training/roles", { query: { q, limit: 12 } }),
+  roleResolve: (title: string) => data<RoleResolution>("/training/roles/resolve", { method: "POST", body: { title } }),
+  roleProgress: (title: string) => data<RoleProgress>("/training/roles/progress", { query: { title } }),
+  roleSessionStart: (body: RoleSessionCreate) => data<RoleSession>("/training/role-sessions", { method: "POST", body }),
+  roleSession: (id: string) => data<RoleSession>(`/training/role-sessions/${id}`),
+  roleSessions: (title?: string) =>
+    data<{ page: number; size: number; total: number; items: RoleSessionRow[] }>("/training/role-sessions", { query: { title, size: 8 } }),
+  roleSessionAnswer: (id: string, body: RoleAnswerBody) =>
+    data<RoleAnswerResponse>(`/training/role-sessions/${id}/answer`, { method: "POST", body }),
+  roleSessionFinish: (id: string) => data<RoleSession>(`/training/role-sessions/${id}/finish`, { method: "POST" }),
+  roleSessionReview: (id: string, status: RoleReviewFilter = "all") =>
+    data<RoleReview>(`/training/role-sessions/${id}/review`, { query: { status } }),
+  roleSessionAgain: (id: string, focus: "mixed" | "weak", count?: number) =>
+    data<RoleSession>(`/training/role-sessions/${id}/again`, { method: "POST", body: { focus, count } }),
   trainingHistory: (page = 1, size = 10, status?: string) =>
     data<{ page: number; size: number; total: number; items: TrainingAttemptRow[] }>("/training/attempts", { query: { page, size, status } }),
   applyToJob: (jobId: string) => request<JobApplication>(`/recruiters/jobs/${jobId}/apply`, { method: "POST" }),

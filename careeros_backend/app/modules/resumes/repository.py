@@ -47,8 +47,8 @@ class ResumeRepository:
             self.session.add(sug)
 
         await self.session.commit()
-        await self.session.refresh(analysis)
-        return analysis
+        latest = await self.get_latest_analysis(analysis.resume_id)
+        return latest if latest is not None else analysis
 
     async def update_resume_status(self, resume_id: uuid.UUID, status: str):
         resume = await self.get_resume_by_id(resume_id)

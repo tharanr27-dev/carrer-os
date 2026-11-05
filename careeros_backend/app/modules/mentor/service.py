@@ -1,9 +1,12 @@
+import logging
 import time
 import uuid
 from collections import defaultdict, deque
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger("careeros")
 
 from app.core.config import settings
 from app.modules.audit.service import AuditService
@@ -102,9 +105,13 @@ class MentorService:
         from app.modules.recommendations.context_aggregator import ContextAggregator
         from app.modules.recommendations.recommendation_engine import RecommendationEngine
 
-        context = await ContextAggregator(self.session).build_context(user_id)
-        recs = (await RecommendationEngine().generate_candidates(context)).recommendations
-        return [{"title": r.title, "reason": r.reason} for r in recs[:4]]
+        try:
+            context = await ContextAggregator(self.session).build_context(user_id)
+            recs = (await RecommendationEngine().generate_candidates(context)).recommendations
+            return [{"title": r.title, "reason": r.reason} for r in recs[:4]]
+        except Exception as exc:
+            logger.warning("Failed to generate mentor suggestions for user %s: %s", user_id, exc)
+            return []
 
     async def _reply(self, user_id: uuid.UUID, mentor_session: MentorSession, message: str):
         from app.modules.recommendations.context_aggregator import ContextAggregator
@@ -114,7 +121,12 @@ class MentorService:
         if not llm.available:
             raise HTTPException(status_code=503, detail=_FAILURES["not_configured"][1])
 
-        context = await ContextAggregator(self.session).build_context(user_id)
+        try:
+            context = await ContextAggregator(self.session).build_context(user_id)
+        except Exception as exc:
+            logger.warning("Context aggregation failed for user %s: %s", user_id, exc)
+            context = {}
+
         history = [
             {"role": "assistant" if m.role == "AI" else "user", "content": m.content[:4000]}
             for m in list(mentor_session.messages)[-settings.MENTOR_HISTORY_MESSAGES :]

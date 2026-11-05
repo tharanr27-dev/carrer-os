@@ -50,30 +50,38 @@ class InterviewEvaluationEngine:
     # ── Questions ────────────────────────────────────────────────────────────
     async def _candidates(self, user_id: uuid.UUID, interview_type: str, difficulty: str) -> List[TrainingQuestion]:
         rows: List[TrainingQuestion] = []
-        for round_, topics in _pool_for(interview_type):
-            stmt = select(TrainingQuestion).where(
-                TrainingQuestion.round == round_, TrainingQuestion.qtype == "text",
-                TrainingQuestion.source == "curated", TrainingQuestion.deleted_at.is_(None),
-            )
-            if topics:
-                stmt = stmt.where(TrainingQuestion.topic.in_(topics))
-            rows += list((await self.db.execute(stmt)).scalars().all())
-        if (interview_type or "").upper() == "TECHNICAL":
-            role = (await self.db.execute(select(TrainingProfile.target_role).where(TrainingProfile.user_id == user_id))).scalar_one_or_none()
-            if role:
-                from app.modules.training.service import ROLE_TOPICS
+        try:
+            async with self.db.begin_nested():
+                for round_, topics in _pool_for(interview_type):
+                    stmt = select(TrainingQuestion).where(
+                        TrainingQuestion.round == round_, TrainingQuestion.qtype == "text",
+                        TrainingQuestion.source == "curated", TrainingQuestion.deleted_at.is_(None),
+                    )
+                    if topics:
+                        stmt = stmt.where(TrainingQuestion.topic.in_(topics))
+                    rows += list((await self.db.execute(stmt)).scalars().all())
+                if (interview_type or "").upper() == "TECHNICAL":
+                    role = (await self.db.execute(select(TrainingProfile.target_role).where(TrainingProfile.user_id == user_id))).scalar_one_or_none()
+                    if role:
+                        from app.modules.training.service import ROLE_TOPICS
 
-                wanted = set(ROLE_TOPICS.get(role, []))
-                narrowed = [q for q in rows if q.topic in wanted]
-                rows = narrowed or rows
+                        wanted = set(ROLE_TOPICS.get(role, []))
+                        narrowed = [q for q in rows if q.topic in wanted]
+                        rows = narrowed or rows
+        except Exception:
+            rows = []
         wanted_diff = (difficulty or "MEDIUM").lower()
         exact = [q for q in rows if q.difficulty == wanted_diff]
         return exact or rows
 
     async def _lookup(self, prompt: str) -> Optional[TrainingQuestion]:
-        return (
-            await self.db.execute(select(TrainingQuestion).where(TrainingQuestion.prompt == prompt, TrainingQuestion.source == "curated").limit(1))
-        ).scalars().first()
+        try:
+            async with self.db.begin_nested():
+                return (
+                    await self.db.execute(select(TrainingQuestion).where(TrainingQuestion.prompt == prompt, TrainingQuestion.source == "curated").limit(1))
+                ).scalars().first()
+        except Exception:
+            return None
 
     async def next_question(
         self, user_id: uuid.UUID, interview_type: str, difficulty: str, asked: List[str], last_answer: Optional[str] = None

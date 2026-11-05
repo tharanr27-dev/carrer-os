@@ -519,6 +519,8 @@ class TrainingService:
 
     async def answer(self, user_id: uuid.UUID, attempt_id: uuid.UUID, req: AnswerRequest) -> Dict[str, Any]:
         att = await self._get_attempt(user_id, attempt_id)
+        if att.mode == "role":
+            raise HTTPException(status_code=409, detail="Use the role-session endpoints for this session")
         await self.db.refresh(att, attribute_names=["items"])
         if att.status == "COMPLETED":
             raise HTTPException(status_code=409, detail="This attempt is already finished")
@@ -603,6 +605,8 @@ class TrainingService:
 
     async def next_questions(self, user_id: uuid.UUID, attempt_id: uuid.UUID, req: NextRequest) -> Dict[str, Any]:
         att = await self._get_attempt(user_id, attempt_id)
+        if att.mode == "role":
+            raise HTTPException(status_code=409, detail="Use the role-session endpoints for this session")
         await self.db.refresh(att, attribute_names=["items"])
         if att.status == "COMPLETED":
             raise HTTPException(status_code=409, detail="This attempt is already finished")
@@ -652,6 +656,8 @@ class TrainingService:
 
     async def finish(self, user_id: uuid.UUID, attempt_id: uuid.UUID) -> Dict[str, Any]:
         att = await self._get_attempt(user_id, attempt_id)
+        if att.mode == "role":
+            raise HTTPException(status_code=409, detail="Use the role-session endpoints for this session")
         await self.db.refresh(att, attribute_names=["items"])
         if att.status != "COMPLETED":
             att.summary = await self._summarise(att)
@@ -731,7 +737,8 @@ class TrainingService:
     # ── History / progress ───────────────────────────────────────────────────
 
     async def history(self, user_id: uuid.UUID, page: int, size: int, status_filter: Optional[str] = None) -> Dict[str, Any]:
-        stmt = select(TrainingAttempt).where(TrainingAttempt.user_id == user_id, TrainingAttempt.deleted_at.is_(None))
+        stmt = select(TrainingAttempt).where(TrainingAttempt.user_id == user_id, TrainingAttempt.deleted_at.is_(None),
+                                             TrainingAttempt.mode != "role")
         if status_filter:
             stmt = stmt.where(TrainingAttempt.status == status_filter)
         total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
@@ -752,7 +759,8 @@ class TrainingService:
         items = [{"round": i.round, "topic": i.topic, "difficulty": i.difficulty, "score": i.score, "score_kind": i.score_kind,
                   "time_taken_sec": i.time_taken_sec, "answered_at": _iso(i.answered_at)} for i in item_rows]
         att_rows = (await self.db.execute(
-            select(TrainingAttempt).where(TrainingAttempt.user_id == user_id, TrainingAttempt.deleted_at.is_(None))
+            select(TrainingAttempt).where(TrainingAttempt.user_id == user_id, TrainingAttempt.deleted_at.is_(None),
+                                          TrainingAttempt.mode != "role")
             .order_by(TrainingAttempt.started_at.desc()).limit(200))).scalars().all()
         attempts = [{**self._attempt_row(a), "summary": a.summary} for a in att_rows]
         data = await self.resolve_resume_data(user_id)
